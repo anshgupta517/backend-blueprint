@@ -29,3 +29,7 @@ class UserRepository(BaseRepository[User]):
             .limit(limit)
         )
         return result.scalars().all()
+    
+
+    async def change_password(self, user_id: str, new_password: str):
+        await self.update(user_id, {"hashed_password": new_password})

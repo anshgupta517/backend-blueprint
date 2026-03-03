@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest
 from app.schemas.user import UserResponse
 from app.services.auth import AuthService
 from app.core.dependencies import get_current_user
@@ -36,3 +36,12 @@ async def get_me(
     No user_id needed — we know who they are from the token.
     """
     return current_user
+
+
+@router.patch("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    service: AuthService = Depends(get_auth_service),
+    current_user: User = Depends(get_current_user)
+):
+    return await service.change_password(current_user, data)

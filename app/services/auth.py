@@ -1,8 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
-from app.core.security import verify_password, create_access_token
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.core.security import verify_password, create_access_token, hash_password
+from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest
 from fastapi import HTTPException, status
+from app.models.user import User
 
 
 class AuthService:
@@ -34,3 +35,20 @@ class AuthService:
         # Issue token with user's ID as the subject
         token = create_access_token(subject=user.id)
         return TokenResponse(access_token=token)
+    
+    async def change_password(self, current_user: User, data: ChangePasswordRequest):
+
+        invalid_credentials_error = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid password",
+        )
+
+        
+        if not verify_password(data.current_password, user.hashed_password):
+            raise invalid_credentials_error
+        
+        hashed_password = hash_password(data.new_password)
+
+        await self.repo.change_password(current_user.id, hashed_password)
+
+        return {"message": "Password changed successfully"}
