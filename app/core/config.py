@@ -17,6 +17,18 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     postgres_db: str
 
+
+    # Test database
+    postgres_test_db: str = "appdb_test"
+
+    @property
+    def test_database_url(self) -> str:
+        """Separate async URL pointing at the test database."""
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
+        )
+
     # JWT
     access_token_expire_minutes: int = 30
 
