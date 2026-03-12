@@ -1,32 +1,29 @@
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from app.core.config import settings
-
-# CryptContext manages password hashing
-# bcrypt is the industry standard — deliberately slow to resist brute force
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 
 # ------- Password Hashing -------
 
 def hash_password(plain_password: str) -> str:
     """
-    Converts plain text to a bcrypt hash.
-    The hash looks like: $2b$12$... (includes salt, rounds, everything)
-    Safe to store directly in the database.
+    Hash a password using bcrypt directly.
+    bcrypt.gensalt() generates a new random salt each time.
     """
-    return pwd_context.hash(plain_password)
+    password_bytes = plain_password.encode("utf-8")
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Checks plain text against a stored hash.
-    Never compare plain passwords directly — always use this.
+    Verify a plain password against a stored bcrypt hash.
     """
-    return pwd_context.verify(plain_password, hashed_password)
-
-
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("utf-8"),
+    )
 # ------- JWT Tokens -------
 
 ALGORITHM = "HS256"  # HMAC-SHA256 — standard for JWT

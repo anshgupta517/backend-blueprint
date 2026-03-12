@@ -44,7 +44,7 @@ class AuthService:
         )
 
         
-        if not verify_password(data.current_password, user.hashed_password):
+        if not verify_password(data.current_password, current_user.hashed_password):
             raise invalid_credentials_error
         
         hashed_password = hash_password(data.new_password)

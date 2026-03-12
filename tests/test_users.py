@@ -114,7 +114,7 @@ class TestDeleteUser:
         """Delete without token should be rejected."""
         user_id = test_user["id"]
         response = await client.delete(f"/api/v1/users/{user_id}")
-        assert response.status_code == 403
+        assert response.status_code == 401 # Authorization header missing
 
     async def test_delete_user_success(
         self,

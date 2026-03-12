@@ -1,52 +1,69 @@
 import uuid
 import time
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.requests import Request
+from starlette.responses import Response
 from app.core.logging import logger
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
+class RequestLoggingMiddleware:
     """
-    Runs on every request, before and after your route handler.
+    Pure ASGI middleware — avoids the BaseHTTPMiddleware asyncio loop bug.
 
-    Responsibilities:
-    1. Generate a unique request_id
-    2. Attach it to the request state (so routes can access it)
-    3. Log the incoming request
-    4. Log the outgoing response with duration
-    5. Attach request_id to the response headers (useful for debugging)
+    BaseHTTPMiddleware wraps call_next in a background task which creates
+    a different event loop context, corrupting asyncpg connections.
+
+    Pure ASGI middleware operates directly on the ASGI interface —
+    no background tasks, no loop switching, no corruption.
     """
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        # Generate unique ID for this request
-        request_id = str(uuid.uuid4())[:8]  # Short 8-char version is readable enough
+    def __init__(self, app: ASGIApp):
+        self.app = app
 
-        # Attach to request state — accessible anywhere via request.state.request_id
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        # Only process HTTP requests — ignore websocket/lifespan events
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        request_id = str(uuid.uuid4())[:8]
+
+        # Attach to request state — accessible via request.state.request_id
+        scope["state"] = scope.get("state", {})
         request.state.request_id = request_id
 
-        # Log the incoming request
         logger.info(
             f"Request started: {request.method} {request.url.path}",
             extra={"request_id": request_id}
         )
 
-        # Track how long the request takes
         start_time = time.perf_counter()
 
-        # Pass request to the actual route handler
-        response = await call_next(request)
+        # Track status code from the response
+        status_code = 500
+        headers_to_send = []
+
+        async def send_with_logging(message):
+            nonlocal status_code, headers_to_send
+
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+
+                # Inject X-Request-ID into response headers
+                headers = list(message.get("headers", []))
+                headers.append(
+                    (b"x-request-id", request_id.encode())
+                )
+                message = {**message, "headers": headers}
+
+            await send(message)
+
+        await self.app(scope, receive, send_with_logging)
 
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
-
-        # Log the response
         logger.info(
             f"Request completed: {request.method} {request.url.path} "
-            f"→ {response.status_code} ({duration_ms}ms)",
+            f"→ {status_code} ({duration_ms}ms)",
             extra={"request_id": request_id}
         )
-
-        # Attach request_id to response headers
-        # Client can use this to report issues: "I got an error, request_id=abc123"
-        response.headers["X-Request-ID"] = request_id
-
-        return response

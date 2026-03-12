@@ -1,18 +1,23 @@
-# tests/conftest.py
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import NullPool  # No connection pooling for tests
 from app.main import app
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 
-# --- Test Database Engine ---
+
+# --- Engine scoped to the whole session ---
+# Created once, shared across all tests (just the engine, not connections)
 
 test_engine = create_async_engine(
     settings.test_database_url,
-    echo=False,         
+    echo=False,
+    poolclass=NullPool,
+    # pool_size not set — NullPool is better for tests
+    # Each test gets a fresh connection, no sharing
 )
 
 TestSessionLocal = async_sessionmaker(
@@ -22,65 +27,65 @@ TestSessionLocal = async_sessionmaker(
 )
 
 
-# --- Fixtures ---
+# --- Database setup/teardown ---
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_database():
     """
-    Runs ONCE for the entire test session.
-    Creates all tables before tests start, drops them after.
-    
-    scope="session" → setup/teardown happens once for ALL tests
-    autouse=True    → runs automatically, no need to request it
+    Creates all tables once before the test session starts.
+    Drops everything after all tests complete.
+    scope="session" → runs once total, not once per test.
     """
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    yield   # All tests run here
+    yield
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+    await test_engine.dispose()
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def clean_tables():
     """
-    Runs before and after EACH test.
-    Clears all table data so tests don't affect each other.
-    
-    autouse=True → every test gets a clean database automatically
+    Wipes all rows between tests.
+    Each test starts with a completely empty database.
+    autouse=True → applies to every test automatically.
     """
-    yield   # Test runs here
+    yield
 
-    # After each test — delete all rows but keep the table structure
-    async with TestSessionLocal() as session:
+    # Use a fresh connection for cleanup — never reuse a potentially
+    # corrupted connection from the test itself
+    async with test_engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
-            await session.execute(table.delete())
-        await session.commit()
+            await conn.execute(table.delete())
 
+
+# --- Per-test fixtures ---
 
 @pytest_asyncio.fixture
 async def db_session():
     """
-    Provides a real async DB session connected to the TEST database.
-    Use this when testing services/repos directly.
+    Fresh AsyncSession for each test.
+    Uses 'async with' so it's always properly closed after the test,
+    even if the test raises an exception.
     """
     async with TestSessionLocal() as session:
         yield session
+        await session.rollback()  # Roll back any uncommitted changes
 
 
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession):
     """
-    Provides an async HTTP test client connected to your FastAPI app.
-    
-    The key trick: we override get_db() to use the TEST database session.
-    Without this override, routes would hit your real development database.
+    HTTP test client with the real DB swapped for the test DB.
+    Fresh client per test — no shared state between tests.
     """
     async def override_get_db():
         yield db_session
 
-    # Dependency override — swap real DB for test DB
     app.dependency_overrides[get_db] = override_get_db
 
     async with AsyncClient(
@@ -89,41 +94,28 @@ async def client(db_session: AsyncSession):
     ) as ac:
         yield ac
 
-    # Clean up the override after test
     app.dependency_overrides.clear()
 
 
-# --- Helper Fixtures ---
-
 @pytest_asyncio.fixture
 async def test_user(client: AsyncClient) -> dict:
-    """
-    Creates a real user via the API and returns the response data.
-    Use this in tests that need an existing user.
-    """
+    """Creates a real user via the API. Returns the response body."""
     response = await client.post("/api/v1/users", json={
         "name": "Test User",
         "email": "test@example.com",
         "password": "testpassword123",
     })
-    assert response.status_code == 201
+    assert response.status_code == 201, response.json()
     return response.json()
 
 
 @pytest_asyncio.fixture
 async def auth_headers(client: AsyncClient, test_user: dict) -> dict:
-    """
-    Logs in as test_user and returns the Authorization header.
-    Use this in tests that need an authenticated request.
-    
-    Usage:
-        async def test_something(client, auth_headers):
-            response = await client.get("/protected", headers=auth_headers)
-    """
+    """Logs in as test_user and returns ready-to-use auth headers."""
     response = await client.post("/api/v1/auth/login", json={
         "email": "test@example.com",
         "password": "testpassword123",
     })
-    assert response.status_code == 200
+    assert response.status_code == 200, response.json()
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
