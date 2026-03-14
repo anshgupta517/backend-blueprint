@@ -1,6 +1,6 @@
 from typing import Generic, TypeVar, Type, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from app.db.base import BaseModel
 
 # TypeVar is a placeholder for "whatever model this repo works with"
@@ -85,3 +85,10 @@ class BaseRepository(Generic[ModelType]):
         )
         await self.db.commit()
         return result.rowcount > 0
+    
+    async def count(self) -> int:
+        """Returns total number of records in the table."""
+        result = await self.db.execute(
+            select(func.count()).select_from(self.model)
+        )
+        return result.scalar_one()

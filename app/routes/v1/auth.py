@@ -6,7 +6,7 @@ from app.schemas.user import UserResponse
 from app.services.auth import AuthService
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.core.rate_limit import limiter
+from app.core.rate_limit import login_rate_limit, change_password_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -16,10 +16,10 @@ def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("5/minute")
 async def login(
     request: Request,
     data: LoginRequest,
+    _: None = Depends(login_rate_limit),  # Enforce rate limit on login attempts
     service: AuthService = Depends(get_auth_service),
 ):
     """
@@ -42,7 +42,6 @@ async def get_me(
 
 
 @router.patch("/change-password")
-@limiter.limit("3/minute")
 async def change_password(
     request: Request,
     data: ChangePasswordRequest,

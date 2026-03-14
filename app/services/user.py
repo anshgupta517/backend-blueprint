@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.pagination import PagedResponse, PaginationParams
+from app.schemas.user import UserCreate, UserResponse, UserResponse, UserUpdate
 from app.models.user import User
 from app.exceptions.http import NotFoundException, AlreadyExistsException
 from app.core.security import hash_password
@@ -40,8 +41,10 @@ class UserService:
             raise NotFoundException("User")
         return user
 
-    async def get_all_users(self, skip: int = 0, limit: int = 100):
-        return await self.repo.get_all(skip=skip, limit=limit)
+    async def get_all_users(self, params: PaginationParams) -> PagedResponse[UserResponse]:
+        users = await self.repo.get_all(skip=params.offset, limit=params.limit)
+        total = await self.repo.count()
+        return PagedResponse.create(items=users, total=total, params=params)
 
     async def update_user(self, user_id: int, data: UserUpdate) -> User:
         # Confirm user exists first

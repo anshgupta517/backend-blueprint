@@ -83,8 +83,14 @@ class TestGetUser:
     async def test_list_users(self, client: AsyncClient, test_user: dict):
         response = await client.get("/api/v1/users")
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert len(response.json()) == 1
+        data = response.json()
+        assert "items" in data
+        assert "total" in data
+        assert "page" in data
+        assert "pages" in data
+        assert data["total"] == 1
+        assert data["page"] == 1
+        assert len(data["items"]) == 1
 
 
 class TestUpdateUser:

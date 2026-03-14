@@ -7,7 +7,7 @@ from app.main import app
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
-
+from app.core.rate_limit import login_rate_limit, change_password_rate_limit, no_rate_limit
 
 # --- Engine scoped to the whole session ---
 # Created once, shared across all tests (just the engine, not connections)
@@ -87,9 +87,8 @@ async def client(db_session: AsyncSession):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-
-    from app.core.rate_limit import limiter
-    limiter._enabled = False  # Disable rate limits during tests
+    app.dependency_overrides[login_rate_limit] = no_rate_limit
+    app.dependency_overrides[change_password_rate_limit] = no_rate_limit
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -97,7 +96,6 @@ async def client(db_session: AsyncSession):
     ) as ac:
         yield ac
 
-    limiter._enabled = True  # Re-enable rate limits after tests
     app.dependency_overrides.clear()
 
 

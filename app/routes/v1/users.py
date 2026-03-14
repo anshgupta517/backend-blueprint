@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
+from app.schemas.pagination import PagedResponse, PaginationParams
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.services.user import UserService
 from app.core.dependencies import get_current_user
@@ -24,13 +25,14 @@ async def create_user(
     return await service.create_user(data)
 
 
-@router.get("", response_model=list[UserResponse])
+@router.get("", response_model=PagedResponse[UserResponse])
 async def list_users(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=100, ge=1, le=100),
     service: UserService = Depends(get_user_service),
 ):
-    return await service.get_all_users(skip=skip, limit=limit)
+    params = PaginationParams(page=page, page_size=page_size)
+    return await service.get_all_users(params=params)
 
 
 @router.get("/{user_id}", response_model=UserResponse)
