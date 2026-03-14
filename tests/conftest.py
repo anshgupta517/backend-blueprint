@@ -88,12 +88,16 @@ async def client(db_session: AsyncSession):
 
     app.dependency_overrides[get_db] = override_get_db
 
+    from app.core.rate_limit import limiter
+    limiter._enabled = False  # Disable rate limits during tests
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as ac:
         yield ac
 
+    limiter._enabled = True  # Re-enable rate limits after tests
     app.dependency_overrides.clear()
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest
@@ -6,6 +6,7 @@ from app.schemas.user import UserResponse
 from app.services.auth import AuthService
 from app.core.dependencies import get_current_user
 from app.models.user import User
+from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -15,7 +16,9 @@ def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     data: LoginRequest,
     service: AuthService = Depends(get_auth_service),
 ):
@@ -39,7 +42,9 @@ async def get_me(
 
 
 @router.patch("/change-password")
+@limiter.limit("3/minute")
 async def change_password(
+    request: Request,
     data: ChangePasswordRequest,
     service: AuthService = Depends(get_auth_service),
     current_user: User = Depends(get_current_user)
