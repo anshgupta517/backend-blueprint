@@ -1,0 +1,45 @@
+# docker-compose.yml
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine       
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # persist data between restarts
+    ports:
+      - "5433:5432"                 # expose for local psql access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── FastAPI App ─────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env                  # reads all vars from your .env file
+    environment:
+      # Override just the DB host — inside Docker network, use service name
+      # not localhost (localhost inside the container = the container itself)
+      POSTGRES_HOST: db             # 'db' is the service name above
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy  # wait for postgres healthcheck to pass
+                                    # before starting the app
+    volumes:
+      - .:/app                      # mount code for hot reload in development
+
+
+volumes:
+  postgres_data:                    # named volume — survives container restarts
