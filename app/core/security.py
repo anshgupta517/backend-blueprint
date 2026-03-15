@@ -2,28 +2,31 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from app.core.config import settings
 import bcrypt
+import asyncio
 
 
 # ------- Password Hashing -------
 
-def hash_password(plain_password: str) -> str:
-    """
-    Hash a password using bcrypt directly.
-    bcrypt.gensalt() generates a new random salt each time.
-    """
-    password_bytes = plain_password.encode("utf-8")
-    salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verify a plain password against a stored bcrypt hash.
-    """
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8"),
+async def hash_password(plain_password: str) -> str:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: bcrypt.hashpw(
+            plain_password.encode("utf-8"),
+            bcrypt.gensalt(rounds=12)
+        ).decode("utf-8")
     )
+
+async def verify_password(plain_password: str, hashed_password: str) -> bool:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8")
+        )
+    )
+
 # ------- JWT Tokens -------
 
 ALGORITHM = "HS256"  # HMAC-SHA256 — standard for JWT

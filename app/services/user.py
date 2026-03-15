@@ -27,7 +27,7 @@ class UserService:
         if existing:
             raise AlreadyExistsException("Email")
 
-        hashed = hash_password(data.password)
+        hashed = await hash_password(data.password)
 
         return await self.repo.create({
             "name": data.name,

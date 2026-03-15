@@ -29,7 +29,7 @@ class AuthService:
             raise invalid_credentials_error
 
         # Verify password against stored hash
-        if not verify_password(data.password, user.hashed_password):
+        if not await verify_password(data.password, user.hashed_password):
             raise invalid_credentials_error
 
         # Issue token with user's ID as the subject
@@ -44,10 +44,10 @@ class AuthService:
         )
 
         
-        if not verify_password(data.current_password, current_user.hashed_password):
+        if not await verify_password(data.current_password, current_user.hashed_password):
             raise invalid_credentials_error
         
-        hashed_password = hash_password(data.new_password)
+        hashed_password = await hash_password(data.new_password)
 
         await self.repo.change_password(current_user.id, hashed_password)
 
