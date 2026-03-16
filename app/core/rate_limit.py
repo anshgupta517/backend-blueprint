@@ -1,11 +1,12 @@
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from fastapi import Request, HTTPException, status
+from app.core.config import settings
 
-limiter = Limiter(key_func=get_remote_address)
-
-# Track request counts per key in memory — simple, no Redis needed
-_request_counts: dict[str, int] = {}
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=settings.redis_url,
+    )
 
 
 class RateLimit:

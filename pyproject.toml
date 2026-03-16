@@ -17,6 +17,9 @@ dependencies = [
     "asyncpg>=0.29.0",          # Async PostgreSQL driver
     "alembic>=1.13.0",          # Database migrations
 
+    # Cache
+    "redis[hiredis]>=5.0.0",
+
     # Config & validation
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0", # .env file loading

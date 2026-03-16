@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.core.rate_limit import login_rate_limit, change_password_rate_limit, no_rate_limit
+from unittest.mock import AsyncMock, patch
 
 # --- Engine scoped to the whole session ---
 # Created once, shared across all tests (just the engine, not connections)
@@ -121,3 +122,17 @@ async def auth_headers(client: AsyncClient, test_user: dict) -> dict:
     assert response.status_code == 200, response.json()
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def disable_cache():
+    """
+    Replace all cache operations with no-ops in tests.
+    Tests should test business logic, not cache behaviour.
+    Cache behaviour has its own dedicated tests if needed.
+    """
+    with patch("app.core.cache.cache.get", new_callable=AsyncMock, return_value=None), \
+         patch("app.core.cache.cache.set", new_callable=AsyncMock, return_value=True), \
+         patch("app.core.cache.cache.delete", new_callable=AsyncMock, return_value=True), \
+         patch("app.core.cache.cache.delete_pattern", new_callable=AsyncMock, return_value=0):
+        yield

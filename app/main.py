@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
+from app.core.cache import cache
 from app.core.config import settings
 from app.core.middleware import RequestLoggingMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,8 +23,13 @@ from app.core.rate_limit import limiter
 async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.app_name} in {settings.app_env} mode")
+    if settings.app_env != "test":
+        await cache.connect()
     yield
+    
     # Shutdown
+    if settings.app_env != "test":
+        await cache.disconnect()
     logger.info(f"Shutting down {settings.app_name}")
 
 

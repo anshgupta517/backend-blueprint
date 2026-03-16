@@ -20,6 +20,21 @@ services:
       retries: 5
       start_period: 10s
 
+     # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data     # persist cache across restarts (optional but good)
+
+
   # ── FastAPI App ─────────────────────────────────────────────────────────────
   app:
     build:
@@ -35,11 +50,13 @@ services:
       - "8000:8000"
     depends_on:
       db:
-        condition: service_healthy  # wait for postgres healthcheck to pass
-                                    # before starting the app
+        condition: service_healthy  
+      redis:
+        condition: service_healthy  
     volumes:
       - .:/app                      # mount code for hot reload in development
 
 
 volumes:
-  postgres_data:                    # named volume — survives container restarts
+  postgres_data:  
+  redis_data:      
