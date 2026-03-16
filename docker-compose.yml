@@ -34,6 +34,42 @@ services:
     volumes:
       - redis_data:/data     # persist cache across restarts (optional but good)
 
+   # ── Celery Worker ───────────────────────────────────────────────────────────
+  worker:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      restart: unless-stopped
+      env_file: .env
+      environment:
+        POSTGRES_HOST: db
+        REDIS_HOST: redis
+      command: celery -A app.worker.celery_app worker --loglevel=info --queues=default
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      volumes:
+        - .:/app
+
+  # ── Flower (Celery Monitoring) ─────────────────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      REDIS_HOST: redis
+    command: celery -A app.worker.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - worker
+    volumes:
+      - .:/app      
 
   # ── FastAPI App ─────────────────────────────────────────────────────────────
   app:

@@ -31,6 +31,4 @@ USER appuser
 
 EXPOSE 8000
 
-# The entrypoint script handles migrations + server startup
-# We use a script rather than inline commands for readability and flexibility
-ENTRYPOINT ["sh", "scripts/start.sh"]
+CMD ["sh", "scripts/start.sh"]

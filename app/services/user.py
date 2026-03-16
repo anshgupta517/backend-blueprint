@@ -8,6 +8,7 @@ from app.core.security import hash_password
 from app.core.cache import cache
 from app.core.cache_keys import UserCacheKeys
 from app.core.logging import logger
+from app.worker.tasks.email import send_welcome_email
 
 
 class UserService:
@@ -28,6 +29,8 @@ class UserService:
 
         # Invalidate list cache — a new user means cached lists are stale
         await cache.delete_pattern(UserCacheKeys.all_pattern())
+
+        send_welcome_email.delay(user_email=user.email, user_name=user.name)
 
         logger.info(f"User created: id={user.id}")
         return user

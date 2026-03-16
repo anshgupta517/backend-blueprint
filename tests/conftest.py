@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.core.rate_limit import login_rate_limit, change_password_rate_limit, no_rate_limit
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, patch, MagicMock
 
 # --- Engine scoped to the whole session ---
 # Created once, shared across all tests (just the engine, not connections)
@@ -135,4 +135,17 @@ async def disable_cache():
          patch("app.core.cache.cache.set", new_callable=AsyncMock, return_value=True), \
          patch("app.core.cache.cache.delete", new_callable=AsyncMock, return_value=True), \
          patch("app.core.cache.cache.delete_pattern", new_callable=AsyncMock, return_value=0):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def disable_celery():
+    """
+    Replace .delay() with a no-op in tests.
+    Tests should not depend on a running Celery worker.
+    """
+    with patch(
+        "app.worker.tasks.email.send_welcome_email.delay",
+        return_value=MagicMock(id="test-task-id")
+    ):
         yield
