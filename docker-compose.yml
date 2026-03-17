@@ -93,31 +93,31 @@ services:
     volumes:
       - .:/app                      # mount code for hot reload in development
 
-# ── Prometheus ──────────────────────────────────────────────────────────────
-  prometheus:
-    image: prom/prometheus:latest
-    restart: unless-stopped
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
+# # ── Prometheus ──────────────────────────────────────────────────────────────
+#   prometheus:
+#     image: prom/prometheus:latest
+#     restart: unless-stopped
+#     ports:
+#       - "9090:9090"
+#     volumes:
+#       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+#       - prometheus_data:/prometheus
+#     command:
+#       - "--config.file=/etc/prometheus/prometheus.yml"
+#       - "--storage.tsdb.path=/prometheus"
 
-  # ── Grafana ─────────────────────────────────────────────────────────────────
-  grafana:
-    image: grafana/grafana:latest
-    restart: unless-stopped
-    ports:
-      - "3001:3000"     # 3000 might clash with your frontend
-    volumes:
-      - grafana_data:/var/lib/grafana
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: "admin"   # change in production
-    depends_on:
-      - prometheus
+#   # ── Grafana ─────────────────────────────────────────────────────────────────
+#   grafana:
+#     image: grafana/grafana:latest
+#     restart: unless-stopped
+#     ports:
+#       - "3001:3000"     # 3000 might clash with your frontend
+#     volumes:
+#       - grafana_data:/var/lib/grafana
+#     environment:
+#       GF_SECURITY_ADMIN_PASSWORD: "admin"   # change in production
+#     depends_on:
+#       - prometheus
 
 
 volumes:

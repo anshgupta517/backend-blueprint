@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
 
-    if settings.sentry_dsn:
+    if settings.enable_sentry and settings.sentry_dsn:
         sentry_sdk.init(
             dsn=settings.sentry_dsn,
             integrations=[
@@ -90,15 +90,17 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # ── Metrics ───────────────────────────────────────────────────
-    Instrumentator(
-        should_group_status_codes=True,     # groups 2xx, 4xx, 5xx
-        should_ignore_untemplated=True,     # ignore /docs, /openapi.json
-        excluded_handlers=["/metrics", "/health"],  # don't track these
-    ).instrument(app).expose(
-        app,
-        include_in_schema=False,    # hide from Swagger docs
-        tags=["Monitoring"],
+    if settings.enable_prometheus:
+        Instrumentator(
+            should_group_status_codes=True,     # groups 2xx, 4xx, 5xx
+            should_ignore_untemplated=True,     # ignore /docs, /openapi.json
+            excluded_handlers=["/metrics", "/health"],  # don't track these
+        ).instrument(app).expose(
+            app,
+            include_in_schema=False,    # hide from Swagger docs
+            tags=["Monitoring"],
     )
+        logger.info("Prometheus metrics enabled at /metrics")
 
     # ── Routers ──────────────────────────────────────────────────
     app.include_router(users.router, prefix="/api/v1")

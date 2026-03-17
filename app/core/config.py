@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # JWT
     access_token_expire_minutes: int = 30
 
+    enable_prometheus: bool = False
+    enable_sentry: bool = False
+
     # Sentry
     sentry_dsn: str = ""    # empty = disabled
 
