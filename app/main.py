@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 from app.core.cache import cache
 from app.core.config import settings
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware, RequestSizeLimitMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.exceptions import (
     http_exception_handler,
@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestSizeLimitMiddleware, max_content_length=1024 * 1024)  # 1MB limit 
     app.add_middleware(RequestLoggingMiddleware)                         
     app.add_middleware(SecurityHeadersMiddleware)                        
 

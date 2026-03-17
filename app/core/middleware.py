@@ -67,3 +67,42 @@ class RequestLoggingMiddleware:
             f"→ {status_code} ({duration_ms}ms)",
             extra={"request_id": request_id}
         )
+
+class RequestSizeLimitMiddleware:
+    """
+    Rejects requests larger than max_size bytes.
+    Prevents memory exhaustion attacks where an attacker sends
+    a 1GB JSON body to your /login endpoint.
+    Default: 1MB — more than enough for any normal API request.
+    """
+    def __init__(self, app: ASGIApp, max_size: int = 1_048_576):
+        self.app = app
+        self.max_size = max_size  # 1MB default
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        total_size = 0
+
+        async def receive_with_limit():
+            nonlocal total_size
+            message = await receive()
+            if message["type"] == "http.request":
+                total_size += len(message.get("body", b""))
+                if total_size > self.max_size:
+                    # Return 413 Payload Too Large
+                    await send({
+                        "type": "http.response.start",
+                        "status": 413,
+                        "headers": [(b"content-type", b"application/json")],
+                    })
+                    await send({
+                        "type": "http.response.body",
+                        "body": b'{"detail": "Request body too large"}',
+                    })
+                    return message
+            return message
+
+        await self.app(scope, receive_with_limit, send)

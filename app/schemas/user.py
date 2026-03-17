@@ -1,3 +1,5 @@
+from dataclasses import Field
+
 from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
 
@@ -6,7 +8,7 @@ class UserCreate(BaseModel):
     """What the client sends to create a user."""
     name: str
     email: EmailStr          # Pydantic validates email format automatically
-    password: str            # Plain text — service layer will hash it
+    password: str = Field(min_length=8, max_length=72)           # Plain text — service layer will hash it
 
     @field_validator("password")
     @classmethod
@@ -28,7 +30,7 @@ class UserUpdate(BaseModel):
     All fields optional — client only sends what they want to change.
     This is the correct pattern for PATCH endpoints.
     """
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=100)
     email: EmailStr | None = None
     is_active: bool | None = None
 
