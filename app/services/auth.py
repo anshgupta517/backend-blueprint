@@ -4,6 +4,7 @@ from app.core.security import verify_password, create_access_token, hash_passwor
 from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest
 from fastapi import HTTPException, status
 from app.models.user import User
+from app.core.metrics import login_attempts_total
 
 
 class AuthService:
@@ -26,11 +27,15 @@ class AuthService:
         # Look up user by email
         user = await self.repo.get_by_email(data.email)
         if not user:
+            login_attempts_total.labels(status="failure").inc()
             raise invalid_credentials_error
 
         # Verify password against stored hash
         if not await verify_password(data.password, user.hashed_password):
+            login_attempts_total.labels(status="failure").inc()
             raise invalid_credentials_error
+        
+        login_attempts_total.labels(status="success").inc()
 
         # Issue token with user's ID as the subject
         token = create_access_token(subject=user.id)

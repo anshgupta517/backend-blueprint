@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # JWT
     access_token_expire_minutes: int = 30
 
+    # Sentry
+    sentry_dsn: str = ""    # empty = disabled
+
     @property
     def database_url(self) -> str:
         """

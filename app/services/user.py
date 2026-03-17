@@ -9,6 +9,7 @@ from app.core.cache import cache
 from app.core.cache_keys import UserCacheKeys
 from app.core.logging import logger
 from app.worker.tasks.email import send_welcome_email
+from app.core.metrics import user_registrations_total
 
 
 class UserService:
@@ -33,6 +34,7 @@ class UserService:
         send_welcome_email.delay(user_email=user.email, user_name=user.name)
 
         logger.info(f"User created: id={user.id}")
+        user_registrations_total.inc()
         return user
 
     async def get_user(self, user_id: int) -> User:

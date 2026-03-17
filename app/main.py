@@ -20,6 +20,10 @@ from app.core.rate_limit import limiter
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.db.session import AsyncSessionLocal
 from sqlalchemy import text
+from prometheus_fastapi_instrumentator import Instrumentator
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 
 @asynccontextmanager
@@ -37,6 +41,26 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            integrations=[
+                FastApiIntegration(
+                    transaction_style="endpoint",  # names transactions by route
+                ),
+                SqlalchemyIntegration(),           # tracks slow queries
+            ],
+            # Only send errors in production — not dev noise
+            environment=settings.app_env,
+
+            # Sample rate — send 100% of errors, 10% of transactions
+            # Transactions = performance tracing (costs money at scale)
+            traces_sample_rate=0.1 if settings.is_production else 0.0,
+            send_default_pii=False,    # don't send passwords, tokens, etc.
+        )
+        logger.info("Sentry initialised")
+
     app = FastAPI(
         title=settings.app_name,
         version="1.0.0",
@@ -64,6 +88,17 @@ def create_app() -> FastAPI:
     # ── Rate Limiting ────────────────────────────────────────────
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # ── Metrics ───────────────────────────────────────────────────
+    Instrumentator(
+        should_group_status_codes=True,     # groups 2xx, 4xx, 5xx
+        should_ignore_untemplated=True,     # ignore /docs, /openapi.json
+        excluded_handlers=["/metrics", "/health"],  # don't track these
+    ).instrument(app).expose(
+        app,
+        include_in_schema=False,    # hide from Swagger docs
+        tags=["Monitoring"],
+    )
 
     # ── Routers ──────────────────────────────────────────────────
     app.include_router(users.router, prefix="/api/v1")
