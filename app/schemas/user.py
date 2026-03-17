@@ -1,6 +1,4 @@
-from dataclasses import Field
-
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from datetime import datetime
 
 

@@ -18,6 +18,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limit import limiter
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.db.session import AsyncSessionLocal
+from sqlalchemy import text
 
 
 @asynccontextmanager
@@ -50,7 +52,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RequestSizeLimitMiddleware, max_content_length=1024 * 1024)  # 1MB limit 
+    app.add_middleware(RequestSizeLimitMiddleware, max_size=1024 * 1024)  # 1MB limit 
     app.add_middleware(RequestLoggingMiddleware)                         
     app.add_middleware(SecurityHeadersMiddleware)                        
 
@@ -67,10 +69,45 @@ def create_app() -> FastAPI:
     app.include_router(users.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
 
-    @app.get("/health", methods=["GET"])
+    @app.get("/health")
     async def health_check():
-        return {"status": "Server Running"}
+        """
+        Checks every critical dependency.
+        Load balancers and deployment platforms use this to decide
+        whether to route traffic to this instance.
+        Returns 200 if healthy, 503 if any dependency is down.
+        """
+        health = {
+            "status": "healthy",
+            "app": settings.app_name,
+            "env": settings.app_env,
+            "dependencies": {}
+        }
+        is_healthy = True
 
+        # Check PostgreSQL
+        try:
+            async with AsyncSessionLocal() as session:
+                await session.execute(text("SELECT 1"))
+            health["dependencies"]["postgres"] = "healthy"
+        except Exception as e:
+            health["dependencies"]["postgres"] = f"unhealthy: {str(e)}"
+            is_healthy = False
+
+        # Check Redis
+        try:
+            await cache._client.ping()
+            health["dependencies"]["redis"] = "healthy"
+        except Exception as e:
+            health["dependencies"]["redis"] = f"unhealthy: {str(e)}"
+            is_healthy = False
+
+        if not is_healthy:
+            health["status"] = "unhealthy"
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=503, content=health)
+
+        return health
     return app
 
 

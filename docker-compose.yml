@@ -82,6 +82,7 @@ services:
       # Override just the DB host — inside Docker network, use service name
       # not localhost (localhost inside the container = the container itself)
       POSTGRES_HOST: db             # 'db' is the service name above
+      REDIS_HOST: redis            # 'redis' is the service name above
     ports:
       - "8000:8000"
     depends_on:
