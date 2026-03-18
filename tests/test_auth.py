@@ -1,4 +1,4 @@
-# tests/test_auth.py
+from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient
 
 
@@ -122,3 +122,59 @@ class TestChangePassword:
             headers=auth_headers,
         )
         assert response.status_code == 401
+
+class TestGoogleOAuth:
+
+    async def test_google_login_redirects(self, client: AsyncClient):
+        """Should redirect to Google when OAuth is configured."""
+        with patch(
+            "app.services.auth.AuthService.get_google_auth_url",
+            new_callable=AsyncMock,
+            return_value="https://accounts.google.com/o/oauth2/v2/auth?..."
+        ):
+            response = await client.get(
+                "/api/v1/auth/google",
+                follow_redirects=False,   # don't follow, just check redirect
+            )
+            assert response.status_code == 307   # temporary redirect
+            assert "accounts.google.com" in response.headers["location"]
+
+    async def test_google_callback_new_user(self, client: AsyncClient):
+        """New Google user should get a JWT and is_new_user=True."""
+        mock_result = {
+            "access_token": "test.jwt.token",
+            "token_type": "bearer",
+            "is_new_user": True,
+        }
+        with patch(
+            "app.services.auth.AuthService.handle_google_callback",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            response = await client.get(
+                "/api/v1/auth/google/callback?code=fake_code"
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "access_token" in data
+            assert data["is_new_user"] is True
+
+    async def test_google_callback_existing_user(
+        self, client: AsyncClient, test_user: dict
+    ):
+        """Existing email/password user should be linked, is_new_user=False."""
+        mock_result = {
+            "access_token": "test.jwt.token",
+            "token_type": "bearer",
+            "is_new_user": False,
+        }
+        with patch(
+            "app.services.auth.AuthService.handle_google_callback",
+            new_callable=AsyncMock,
+            return_value=mock_result,
+        ):
+            response = await client.get(
+                "/api/v1/auth/google/callback?code=fake_code"
+            )
+            assert response.status_code == 200
+            assert response.json()["is_new_user"] is False

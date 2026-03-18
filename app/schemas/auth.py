@@ -22,3 +22,12 @@ class ChangePasswordRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
         return v
+    
+class OAuthCallbackResponse(BaseModel):
+    """
+    Returned after successful OAuth login.
+    Same shape as TokenResponse — client treats it identically.
+    """
+    access_token: str
+    token_type: str = "bearer"
+    is_new_user: bool   # True = just registered, False = existing user logged in

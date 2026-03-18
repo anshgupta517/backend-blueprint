@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest
+from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest, OAuthCallbackResponse
 from app.schemas.user import UserResponse
 from app.services.auth import AuthService
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.core.rate_limit import login_rate_limit, change_password_rate_limit
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -49,3 +50,27 @@ async def change_password(
     current_user: User = Depends(get_current_user)
 ):
     return await service.change_password(current_user, data)
+
+@router.get("/google")
+async def google_login(
+    service: AuthService = Depends(get_auth_service),
+):
+    """
+    Step 1 — redirect user to Google's login page.
+    Frontend calls this, browser follows the redirect to Google.
+    """
+    auth_url = await service.get_google_auth_url()
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/google/callback", response_model=OAuthCallbackResponse)
+async def google_callback(
+    code: str,                              # Google sends this in the URL
+    service: AuthService = Depends(get_auth_service),
+):
+    """
+    Step 2 — Google redirects here after user approves.
+    URL looks like: /auth/google/callback?code=abc123&state=xyz
+    We exchange the code for user info, then issue our JWT.
+    """
+    return await service.handle_google_callback(code=code)

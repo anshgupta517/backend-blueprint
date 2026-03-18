@@ -39,6 +39,7 @@ class UserResponse(BaseModel):
     name: str
     email: str
     is_active: bool
+    avatar_url: str | None = None # For Google OAuth users, we can include their profile picture URL
     created_at: datetime
     updated_at: datetime
 

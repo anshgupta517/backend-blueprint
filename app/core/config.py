@@ -86,6 +86,16 @@ class Settings(BaseSettings):
     # Sentry
     sentry_dsn: str = ""    # empty = disabled
 
+    # Google OAuth2
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+
+    @property
+    def google_oauth_enabled(self) -> bool:
+        """Only enable if both credentials are configured."""
+        return bool(self.google_client_id and self.google_client_secret)
+
     @property
     def database_url(self) -> str:
         """
