@@ -42,5 +42,14 @@ class UserResponse(BaseModel):
     avatar_url: str | None = None # For Google OAuth users, we can include their profile picture URL
     created_at: datetime
     updated_at: datetime
+    has_password: bool = False
+
+    # Compute it from the model 
+    @classmethod
+    def from_orm_user(cls, user):
+        return cls(
+            **{k: v for k, v in user.__dict__.items()},
+            has_password=user.hashed_password is not None,
+    )
 
     model_config = {"from_attributes": True}  # Pydantic v2 replaces orm_mode = True

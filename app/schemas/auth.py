@@ -1,6 +1,4 @@
-from pydantic import BaseModel, field_validator
-
-
+from pydantic import BaseModel, Field, field_validator
 class LoginRequest(BaseModel):
     """What the client sends to log in."""
     email: str
@@ -31,3 +29,7 @@ class OAuthCallbackResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     is_new_user: bool   # True = just registered, False = existing user logged in
+
+class SetPasswordRequest(BaseModel):
+    """For Google users who want to add a password to their account."""
+    new_password: str = Field(min_length=8, max_length=72)

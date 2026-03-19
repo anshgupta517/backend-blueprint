@@ -152,3 +152,22 @@ class AuthService:
             access_token=token,
             is_new_user=is_new_user,
         )
+    
+    async def set_password(
+        self,
+        current_user: User,
+        data: SetPasswordRequest,
+    ) -> dict:
+        """
+        Allows a Google-authenticated user to add a password.
+        After this, they can login with either method.
+        """
+        if current_user.hashed_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Account already has a password. Use change-password instead.",
+            )
+
+        hashed = await hash_password(data.new_password)
+        await self.repo.update(current_user.id, {"hashed_password": hashed})
+        return {"message": "Password set successfully"}
