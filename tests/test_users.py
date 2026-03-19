@@ -7,11 +7,14 @@ class TestCreateUser:
     """Group related tests in classes — keeps the file organized."""
 
     async def test_create_user_success(self, client: AsyncClient):
-        response = await client.post("/api/v1/users", json={
-            "name": "Alice",
-            "email": "alice@test.com",
-            "password": "password123",
-        })
+        response = await client.post(
+            "/api/v1/users",
+            json={
+                "name": "Alice",
+                "email": "alice@test.com",
+                "password": "password123",
+            },
+        )
         assert response.status_code == 201
 
         data = response.json()
@@ -39,27 +42,36 @@ class TestCreateUser:
         assert "already exists" in response.json()["detail"].lower()
 
     async def test_create_user_invalid_email(self, client: AsyncClient):
-        response = await client.post("/api/v1/users", json={
-            "name": "Alice",
-            "email": "notanemail",
-            "password": "password123",
-        })
+        response = await client.post(
+            "/api/v1/users",
+            json={
+                "name": "Alice",
+                "email": "notanemail",
+                "password": "password123",
+            },
+        )
         assert response.status_code == 422
 
     async def test_create_user_short_password(self, client: AsyncClient):
-        response = await client.post("/api/v1/users", json={
-            "name": "Alice",
-            "email": "alice@test.com",
-            "password": "short",
-        })
+        response = await client.post(
+            "/api/v1/users",
+            json={
+                "name": "Alice",
+                "email": "alice@test.com",
+                "password": "short",
+            },
+        )
         assert response.status_code == 422
 
     async def test_create_user_blank_name(self, client: AsyncClient):
-        response = await client.post("/api/v1/users", json={
-            "name": "   ",
-            "email": "alice@test.com",
-            "password": "password123",
-        })
+        response = await client.post(
+            "/api/v1/users",
+            json={
+                "name": "   ",
+                "email": "alice@test.com",
+                "password": "password123",
+            },
+        )
         assert response.status_code == 422
 
 
@@ -120,7 +132,7 @@ class TestDeleteUser:
         """Delete without token should be rejected."""
         user_id = test_user["id"]
         response = await client.delete(f"/api/v1/users/{user_id}")
-        assert response.status_code == 401 # Authorization header missing
+        assert response.status_code == 401  # Authorization header missing
 
     async def test_delete_user_success(
         self,

@@ -5,10 +5,13 @@ from httpx import AsyncClient
 class TestLogin:
 
     async def test_login_success(self, client: AsyncClient, test_user: dict):
-        response = await client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "testpassword123",
-        })
+        response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "test@example.com",
+                "password": "testpassword123",
+            },
+        )
         assert response.status_code == 200
 
         data = response.json()
@@ -19,18 +22,24 @@ class TestLogin:
         assert len(data["access_token"]) > 0
 
     async def test_login_wrong_password(self, client: AsyncClient, test_user: dict):
-        response = await client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "wrongpassword",
-        })
+        response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "test@example.com",
+                "password": "wrongpassword",
+            },
+        )
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid email or password"
-        
+
     async def test_login_nonexistent_email(self, client: AsyncClient):
-        response = await client.post("/api/v1/auth/login", json={
-            "email": "nobody@test.com",
-            "password": "password123",
-        })
+        response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "nobody@test.com",
+                "password": "password123",
+            },
+        )
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid email or password"
 
@@ -44,14 +53,20 @@ class TestLogin:
         identical error messages. If they differ, attackers can enumerate
         which emails are registered.
         """
-        wrong_email = await client.post("/api/v1/auth/login", json={
-            "email": "nobody@test.com",
-            "password": "testpassword123",
-        })
-        wrong_password = await client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "wrongpassword",
-        })
+        wrong_email = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "nobody@test.com",
+                "password": "testpassword123",
+            },
+        )
+        wrong_password = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "test@example.com",
+                "password": "wrongpassword",
+            },
+        )
         assert wrong_email.json()["detail"] == wrong_password.json()["detail"]
 
 
@@ -95,17 +110,23 @@ class TestChangePassword:
         assert response.status_code == 200
 
         # Verify old password no longer works
-        old_login = await client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "testpassword123",
-        })
+        old_login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "test@example.com",
+                "password": "testpassword123",
+            },
+        )
         assert old_login.status_code == 401
 
         # Verify new password works
-        new_login = await client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "newpassword456",
-        })
+        new_login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "test@example.com",
+                "password": "newpassword456",
+            },
+        )
         assert new_login.status_code == 200
 
     async def test_change_password_wrong_current(
@@ -123,6 +144,7 @@ class TestChangePassword:
         )
         assert response.status_code == 401
 
+
 class TestGoogleOAuth:
 
     async def test_google_login_redirects(self, client: AsyncClient):
@@ -130,13 +152,13 @@ class TestGoogleOAuth:
         with patch(
             "app.services.auth.AuthService.get_google_auth_url",
             new_callable=AsyncMock,
-            return_value="https://accounts.google.com/o/oauth2/v2/auth?..."
+            return_value="https://accounts.google.com/o/oauth2/v2/auth?...",
         ):
             response = await client.get(
                 "/api/v1/auth/google",
-                follow_redirects=False,   # don't follow, just check redirect
+                follow_redirects=False,  # don't follow, just check redirect
             )
-            assert response.status_code == 307   # temporary redirect
+            assert response.status_code == 307  # temporary redirect
             assert "accounts.google.com" in response.headers["location"]
 
     async def test_google_callback_new_user(self, client: AsyncClient):
@@ -151,9 +173,7 @@ class TestGoogleOAuth:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            response = await client.get(
-                "/api/v1/auth/google/callback?code=fake_code"
-            )
+            response = await client.get("/api/v1/auth/google/callback?code=fake_code")
             assert response.status_code == 200
             data = response.json()
             assert "access_token" in data
@@ -173,8 +193,6 @@ class TestGoogleOAuth:
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
-            response = await client.get(
-                "/api/v1/auth/google/callback?code=fake_code"
-            )
+            response = await client.get("/api/v1/auth/google/callback?code=fake_code")
             assert response.status_code == 200
             assert response.json()["is_new_user"] is False

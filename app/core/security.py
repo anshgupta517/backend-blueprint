@@ -4,28 +4,28 @@ from app.core.config import settings
 import bcrypt
 import asyncio
 
-
 # ------- Password Hashing -------
+
 
 async def hash_password(plain_password: str) -> str:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None,
         lambda: bcrypt.hashpw(
-            plain_password.encode("utf-8"),
-            bcrypt.gensalt(rounds=12)
-        ).decode("utf-8")
+            plain_password.encode("utf-8"), bcrypt.gensalt(rounds=12)
+        ).decode("utf-8"),
     )
+
 
 async def verify_password(plain_password: str, hashed_password: str) -> bool:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None,
         lambda: bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8")
-        )
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        ),
     )
+
 
 # ------- JWT Tokens -------
 
@@ -47,8 +47,8 @@ def create_access_token(subject: int | str) -> str:
         minutes=settings.access_token_expire_minutes
     )
     payload = {
-        "sub": str(subject),   # 'sub' (subject) is the JWT standard field for user ID
-        "exp": expire,         # 'exp' (expiry) — jose checks this automatically
+        "sub": str(subject),  # 'sub' (subject) is the JWT standard field for user ID
+        "exp": expire,  # 'exp' (expiry) — jose checks this automatically
     }
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 

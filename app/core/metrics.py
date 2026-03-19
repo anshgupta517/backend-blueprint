@@ -9,7 +9,7 @@ user_registrations_total = Counter(
 login_attempts_total = Counter(
     "login_attempts_total",
     "Total login attempts",
-    ["status"],     # label: 'success' or 'failure'
+    ["status"],  # label: 'success' or 'failure'
 )
 
 active_users_gauge = Gauge(

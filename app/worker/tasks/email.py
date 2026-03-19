@@ -8,9 +8,9 @@ from app.core.logging import logger
 
 
 @celery_app.task(
-    bind=True,              # 'self' gives access to task instance (for retries)
-    max_retries=3,          # retry up to 3 times on failure
-    default_retry_delay=60, # wait 60 seconds between retries
+    bind=True,  # 'self' gives access to task instance (for retries)
+    max_retries=3,  # retry up to 3 times on failure
+    default_retry_delay=60,  # wait 60 seconds between retries
     name="tasks.send_welcome_email",
 )
 def send_welcome_email(self, user_email: str, user_name: str) -> dict:
@@ -74,7 +74,4 @@ The {settings.app_name} team
         logger.error(f"Failed to send welcome email to {user_email}: {exc}")
         # Retry with exponential backoff
         # countdown doubles each retry: 60s, 120s, 240s
-        raise self.retry(
-            exc=exc,
-            countdown=60 * (2 ** self.request.retries)
-        )
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))

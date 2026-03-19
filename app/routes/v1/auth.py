@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest, OAuthCallbackResponse, SetPasswordRequest
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    ChangePasswordRequest,
+    OAuthCallbackResponse,
+    SetPasswordRequest,
+)
 from app.schemas.user import UserResponse
 from app.services.auth import AuthService
 from app.core.dependencies import get_current_user
@@ -27,7 +33,7 @@ async def login(
     Exchange email + password for a JWT access token.
     Include the token in subsequent requests as:
     Authorization: Bearer <token>
-    """ 
+    """
     return await service.login(data)
 
 
@@ -47,9 +53,10 @@ async def change_password(
     request: Request,
     data: ChangePasswordRequest,
     service: AuthService = Depends(get_auth_service),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     return await service.change_password(current_user, data)
+
 
 @router.get("/google")
 async def google_login(
@@ -65,7 +72,7 @@ async def google_login(
 
 @router.get("/google/callback", response_model=OAuthCallbackResponse)
 async def google_callback(
-    code: str,                              # Google sends this in the URL
+    code: str,  # Google sends this in the URL
     service: AuthService = Depends(get_auth_service),
 ):
     """
@@ -74,6 +81,7 @@ async def google_callback(
     We exchange the code for user info, then issue our JWT.
     """
     return await service.handle_google_callback(code=code)
+
 
 @router.post("/set-password")
 async def set_password(

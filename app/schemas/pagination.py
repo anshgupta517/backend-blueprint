@@ -10,6 +10,7 @@ class PaginationParams(BaseModel):
     FastAPI reads these directly from the URL:
     GET /users?page=2&page_size=20
     """
+
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
 
@@ -31,11 +32,12 @@ class PagedResponse(BaseModel, Generic[T]):
     Generic[T] means PagedResponse[UserResponse] is valid,
     and the items field will be typed as list[UserResponse].
     """
+
     items: Sequence[T]
-    total: int          # Total records in database (not just this page)
-    page: int           # Current page number
-    page_size: int      # Items per page
-    pages: int          # Total number of pages
+    total: int  # Total records in database (not just this page)
+    page: int  # Current page number
+    page_size: int  # Items per page
+    pages: int  # Total number of pages
 
     @classmethod
     def create(

@@ -6,7 +6,7 @@ from app.core.config import settings
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=settings.redis_url,
-    )
+)
 
 
 class RateLimit:
@@ -22,6 +22,7 @@ class RateLimit:
             ...
         ):
     """
+
     def __init__(self, limit: str):
         self.limit = limit
         self._enabled = True

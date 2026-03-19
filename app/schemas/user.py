@@ -4,9 +4,12 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     """What the client sends to create a user."""
+
     name: str
-    email: EmailStr          # Pydantic validates email format automatically
-    password: str = Field(min_length=8, max_length=72)           # Plain text — service layer will hash it
+    email: EmailStr  # Pydantic validates email format automatically
+    password: str = Field(
+        min_length=8, max_length=72
+    )  # Plain text — service layer will hash it
 
     @field_validator("password")
     @classmethod
@@ -28,6 +31,7 @@ class UserUpdate(BaseModel):
     All fields optional — client only sends what they want to change.
     This is the correct pattern for PATCH endpoints.
     """
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
     email: EmailStr | None = None
     is_active: bool | None = None
@@ -35,21 +39,24 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     """What we send back — never expose hashed_password."""
+
     id: int
     name: str
     email: str
     is_active: bool
-    avatar_url: str | None = None # For Google OAuth users, we can include their profile picture URL
+    avatar_url: str | None = (
+        None  # For Google OAuth users, we can include their profile picture URL
+    )
     created_at: datetime
     updated_at: datetime
     has_password: bool = False
 
-    # Compute it from the model 
+    # Compute it from the model
     @classmethod
     def from_orm_user(cls, user):
         return cls(
             **{k: v for k, v in user.__dict__.items()},
             has_password=user.hashed_password is not None,
-    )
+        )
 
     model_config = {"from_attributes": True}  # Pydantic v2 replaces orm_mode = True

@@ -1,11 +1,21 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
 from app.core.security import verify_password, create_access_token, hash_password
-from app.schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    ChangePasswordRequest,
+    SetPasswordRequest,
+)
 from fastapi import HTTPException, status
 from app.models.user import User
 from app.core.metrics import login_attempts_total
-from app.core.oauth import get_google_client, GOOGLE_AUTH_URL, GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL
+from app.core.oauth import (
+    get_google_client,
+    GOOGLE_AUTH_URL,
+    GOOGLE_TOKEN_URL,
+    GOOGLE_USERINFO_URL,
+)
 from app.schemas.auth import OAuthCallbackResponse
 from app.core.config import settings
 
@@ -37,13 +47,13 @@ class AuthService:
         if not await verify_password(data.password, user.hashed_password):
             login_attempts_total.labels(status="failure").inc()
             raise invalid_credentials_error
-        
+
         login_attempts_total.labels(status="success").inc()
 
         # Issue token with user's ID as the subject
         token = create_access_token(subject=user.id)
         return TokenResponse(access_token=token)
-    
+
     async def change_password(self, current_user: User, data: ChangePasswordRequest):
 
         invalid_credentials_error = HTTPException(
@@ -51,16 +61,16 @@ class AuthService:
             detail="Invalid password",
         )
 
-        
-        if not await verify_password(data.current_password, current_user.hashed_password):
+        if not await verify_password(
+            data.current_password, current_user.hashed_password
+        ):
             raise invalid_credentials_error
-        
+
         hashed_password = await hash_password(data.new_password)
 
         await self.repo.change_password(current_user.id, hashed_password)
 
         return {"message": "Password changed successfully"}
-    
 
     async def get_google_auth_url(self) -> str:
         """
@@ -103,7 +113,7 @@ class AuthService:
             google_user = response.json()
 
         # Extract what we need from Google's response
-        google_id = google_user.get("sub")      # Google's unique user ID
+        google_id = google_user.get("sub")  # Google's unique user ID
         email = google_user.get("email")
         name = google_user.get("name", "")
         avatar_url = google_user.get("picture")
@@ -125,9 +135,7 @@ class AuthService:
             # Link their Google account automatically
             user = await self.repo.get_by_email(email)
             if user:
-                await self.repo.link_google_account(
-                    user.id, google_id, avatar_url
-                )
+                await self.repo.link_google_account(user.id, google_id, avatar_url)
                 user = await self.repo.get(user.id)  # reload with new data
 
             else:
@@ -152,7 +160,7 @@ class AuthService:
             access_token=token,
             is_new_user=is_new_user,
         )
-    
+
     async def set_password(
         self,
         current_user: User,

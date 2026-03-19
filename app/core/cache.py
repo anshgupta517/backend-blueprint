@@ -19,7 +19,7 @@ class CacheClient:
         self._client = redis.from_url(
             settings.redis_url,
             encoding="utf-8",
-            decode_responses=True,      # Returns str not bytes
+            decode_responses=True,  # Returns str not bytes
         )
         logger.info("Redis connection established")
 

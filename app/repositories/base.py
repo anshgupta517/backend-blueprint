@@ -11,12 +11,12 @@ ModelType = TypeVar("ModelType", bound=BaseModel)
 class BaseRepository(Generic[ModelType]):
     """
     Generic async CRUD repository.
-    
+
     Usage:
         class UserRepository(BaseRepository[User]):
             def __init__(self, db: AsyncSession):
                 super().__init__(User, db)
-    
+
     You instantly get: get, get_all, create, update, delete
     without writing a single extra line.
     """
@@ -27,21 +27,17 @@ class BaseRepository(Generic[ModelType]):
 
     async def get(self, id: int) -> ModelType | None:
         """Get a single record by primary key. Returns None if not found."""
-        result = await self.db.execute(
-            select(self.model).where(self.model.id == id)
-        )
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
         return result.scalar_one_or_none()
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> Sequence[ModelType]:
         """
         Get all records with pagination.
-        
+
         skip + limit = the standard pagination pattern.
         Example: skip=20, limit=10 → page 3 of results
         """
-        result = await self.db.execute(
-            select(self.model).offset(skip).limit(limit)
-        )
+        result = await self.db.execute(select(self.model).offset(skip).limit(limit))
         return result.scalars().all()
 
     async def create(self, data: dict) -> ModelType:
@@ -65,12 +61,10 @@ class BaseRepository(Generic[ModelType]):
         filtered_data = {k: v for k, v in data.items() if v is not None}
 
         if not filtered_data:
-            return await self.get(id)   # Nothing to update, return as-is
+            return await self.get(id)  # Nothing to update, return as-is
 
         await self.db.execute(
-            update(self.model)
-            .where(self.model.id == id)
-            .values(**filtered_data)
+            update(self.model).where(self.model.id == id).values(**filtered_data)
         )
         await self.db.commit()
         return await self.get(id)
@@ -80,15 +74,11 @@ class BaseRepository(Generic[ModelType]):
         Delete a record by id.
         Returns True if deleted, False if not found.
         """
-        result = await self.db.execute(
-            delete(self.model).where(self.model.id == id)
-        )
+        result = await self.db.execute(delete(self.model).where(self.model.id == id))
         await self.db.commit()
         return result.rowcount > 0
-    
+
     async def count(self) -> int:
         """Returns total number of records in the table."""
-        result = await self.db.execute(
-            select(func.count()).select_from(self.model)
-        )
+        result = await self.db.execute(select(func.count()).select_from(self.model))
         return result.scalar_one()

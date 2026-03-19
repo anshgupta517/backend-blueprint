@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     if settings.app_env != "test":
         await cache.connect()
     yield
-    
+
     # Shutdown
     if settings.app_env != "test":
         await cache.disconnect()
@@ -49,15 +49,14 @@ def create_app() -> FastAPI:
                 FastApiIntegration(
                     transaction_style="endpoint",  # names transactions by route
                 ),
-                SqlalchemyIntegration(),           # tracks slow queries
+                SqlalchemyIntegration(),  # tracks slow queries
             ],
             # Only send errors in production — not dev noise
             environment=settings.app_env,
-
             # Sample rate — send 100% of errors, 10% of transactions
             # Transactions = performance tracing (costs money at scale)
             traces_sample_rate=0.1 if settings.is_production else 0.0,
-            send_default_pii=False,    # don't send passwords, tokens, etc.
+            send_default_pii=False,  # don't send passwords, tokens, etc.
         )
         logger.info("Sentry initialised")
 
@@ -70,15 +69,16 @@ def create_app() -> FastAPI:
     )
 
     # ── Middleware ───────────────────────────────────────────────
-    app.add_middleware(CORSMiddleware,          
+    app.add_middleware(
+        CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RequestSizeLimitMiddleware, max_size=1024 * 1024)  # 1MB limit 
-    app.add_middleware(RequestLoggingMiddleware)                         
-    app.add_middleware(SecurityHeadersMiddleware)                        
+    app.add_middleware(RequestSizeLimitMiddleware, max_size=1024 * 1024)  # 1MB limit
+    app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # ── Exception Handlers ───────────────────────────────────────
     app.add_exception_handler(HTTPException, http_exception_handler)
@@ -92,14 +92,14 @@ def create_app() -> FastAPI:
     # ── Metrics ───────────────────────────────────────────────────
     if settings.enable_prometheus:
         Instrumentator(
-            should_group_status_codes=True,     # groups 2xx, 4xx, 5xx
-            should_ignore_untemplated=True,     # ignore /docs, /openapi.json
+            should_group_status_codes=True,  # groups 2xx, 4xx, 5xx
+            should_ignore_untemplated=True,  # ignore /docs, /openapi.json
             excluded_handlers=["/metrics", "/health"],  # don't track these
         ).instrument(app).expose(
             app,
-            include_in_schema=False,    # hide from Swagger docs
+            include_in_schema=False,  # hide from Swagger docs
             tags=["Monitoring"],
-    )
+        )
         logger.info("Prometheus metrics enabled at /metrics")
 
     # ── Routers ──────────────────────────────────────────────────
@@ -118,7 +118,7 @@ def create_app() -> FastAPI:
             "status": "healthy",
             "app": settings.app_name,
             "env": settings.app_env,
-            "dependencies": {}
+            "dependencies": {},
         }
         is_healthy = True
 
@@ -142,9 +142,11 @@ def create_app() -> FastAPI:
         if not is_healthy:
             health["status"] = "unhealthy"
             from fastapi.responses import JSONResponse
+
             return JSONResponse(status_code=503, content=health)
 
         return health
+
     return app
 
 

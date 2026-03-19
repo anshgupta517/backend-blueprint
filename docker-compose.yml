@@ -53,7 +53,7 @@ services:
       volumes:
         - .:/app
 
-  # ── Flower (Celery Monitoring) ─────────────────────────────────────────────
+  # ── Flower (Celery Monitoring) - in development ─────────────────────────────────────────────
   flower:
     build:
       context: .

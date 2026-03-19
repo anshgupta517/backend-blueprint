@@ -35,7 +35,7 @@ class RequestLoggingMiddleware:
 
         logger.info(
             f"Request started: {request.method} {request.url.path}",
-            extra={"request_id": request_id}
+            extra={"request_id": request_id},
         )
 
         start_time = time.perf_counter()
@@ -52,9 +52,7 @@ class RequestLoggingMiddleware:
 
                 # Inject X-Request-ID into response headers
                 headers = list(message.get("headers", []))
-                headers.append(
-                    (b"x-request-id", request_id.encode())
-                )
+                headers.append((b"x-request-id", request_id.encode()))
                 message = {**message, "headers": headers}
 
             await send(message)
@@ -65,8 +63,9 @@ class RequestLoggingMiddleware:
         logger.info(
             f"Request completed: {request.method} {request.url.path} "
             f"→ {status_code} ({duration_ms}ms)",
-            extra={"request_id": request_id}
+            extra={"request_id": request_id},
         )
+
 
 class RequestSizeLimitMiddleware:
     """
@@ -75,6 +74,7 @@ class RequestSizeLimitMiddleware:
     a 1GB JSON body to your /login endpoint.
     Default: 1MB — more than enough for any normal API request.
     """
+
     def __init__(self, app: ASGIApp, max_size: int = 1_048_576):
         self.app = app
         self.max_size = max_size  # 1MB default
@@ -93,15 +93,19 @@ class RequestSizeLimitMiddleware:
                 total_size += len(message.get("body", b""))
                 if total_size > self.max_size:
                     # Return 413 Payload Too Large
-                    await send({
-                        "type": "http.response.start",
-                        "status": 413,
-                        "headers": [(b"content-type", b"application/json")],
-                    })
-                    await send({
-                        "type": "http.response.body",
-                        "body": b'{"detail": "Request body too large"}',
-                    })
+                    await send(
+                        {
+                            "type": "http.response.start",
+                            "status": 413,
+                            "headers": [(b"content-type", b"application/json")],
+                        }
+                    )
+                    await send(
+                        {
+                            "type": "http.response.body",
+                            "body": b'{"detail": "Request body too large"}',
+                        }
+                    )
                     return message
             return message
 

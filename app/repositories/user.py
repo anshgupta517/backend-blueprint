@@ -16,9 +16,7 @@ class UserRepository(BaseRepository[User]):
 
     async def get_by_email(self, email: str) -> User | None:
         """Needed for login and duplicate email checks."""
-        result = await self.db.execute(
-            select(User).where(User.email == email)
-        )
+        result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
     async def get_active_users(self, skip: int = 0, limit: int = 100):
@@ -29,18 +27,14 @@ class UserRepository(BaseRepository[User]):
             .limit(limit)
         )
         return result.scalars().all()
-    
 
     async def change_password(self, user_id: str, new_password: str):
         await self.update(user_id, {"hashed_password": new_password})
 
     async def get_by_google_id(self, google_id: str) -> User | None:
         """Find a user by their Google account ID."""
-        result = await self.db.execute(
-            select(User).where(User.google_id == google_id)
-        )
+        result = await self.db.execute(select(User).where(User.google_id == google_id))
         return result.scalar_one_or_none()
-
 
     async def create_google_user(
         self,
@@ -53,14 +47,15 @@ class UserRepository(BaseRepository[User]):
         Creates a user who signed up via Google.
         No password — hashed_password stays None.
         """
-        return await self.create({
-            "email": email,
-            "name": name,
-            "google_id": google_id,
-            "avatar_url": avatar_url,
-            "hashed_password": None,
-        })
-
+        return await self.create(
+            {
+                "email": email,
+                "name": name,
+                "google_id": google_id,
+                "avatar_url": avatar_url,
+                "hashed_password": None,
+            }
+        )
 
     async def link_google_account(
         self,
@@ -73,7 +68,10 @@ class UserRepository(BaseRepository[User]):
         Called when someone who registered with email later clicks
         "Login with Google" using the same email.
         """
-        return await self.update(user_id, {
-            "google_id": google_id,
-            "avatar_url": avatar_url,
-        })
+        return await self.update(
+            user_id,
+            {
+                "google_id": google_id,
+                "avatar_url": avatar_url,
+            },
+        )

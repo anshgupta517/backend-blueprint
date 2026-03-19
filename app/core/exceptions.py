@@ -13,8 +13,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     request_id = getattr(request.state, "request_id", "unknown")
 
     logger.warning(
-        f"HTTP {exc.status_code}: {exc.detail}",
-        extra={"request_id": request_id}
+        f"HTTP {exc.status_code}: {exc.detail}", extra={"request_id": request_id}
     )
 
     return JSONResponse(
@@ -24,13 +23,12 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             "error": HTTP_STATUS_LABELS.get(exc.status_code, "Error"),
             "detail": exc.detail,
             "request_id": request_id,
-        }
+        },
     )
 
 
 async def validation_exception_handler(
-    request: Request,
-    exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """
     Handles Pydantic validation errors (422).
@@ -48,10 +46,7 @@ async def validation_exception_handler(
 
     detail = f"{field}: {message}" if field else message
 
-    logger.warning(
-        f"Validation error: {detail}",
-        extra={"request_id": request_id}
-    )
+    logger.warning(f"Validation error: {detail}", extra={"request_id": request_id})
 
     return JSONResponse(
         status_code=422,
@@ -60,7 +55,7 @@ async def validation_exception_handler(
             "error": "Validation Error",
             "detail": detail,
             "request_id": request_id,
-        }
+        },
     )
 
 
@@ -77,7 +72,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     logger.error(
         f"Unhandled exception: {type(exc).__name__}: {exc}",
         exc_info=True,
-        extra={"request_id": request_id}
+        extra={"request_id": request_id},
     )
 
     return JSONResponse(
@@ -87,5 +82,5 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
             "error": "Internal Server Error",
             "detail": "An unexpected error occurred. Please try again later.",
             "request_id": request_id,
-        }
+        },
     )

@@ -7,10 +7,11 @@ class ErrorResponse(BaseModel):
     Every error your API returns will have this shape.
     Clients can always rely on this structure — no surprises.
     """
+
     status_code: int
-    error: str          # Short machine-readable label e.g. "Not Found"
-    detail: str         # Human-readable message e.g. "User not found"
-    request_id: str     # Unique ID to trace this request in your logs
+    error: str  # Short machine-readable label e.g. "Not Found"
+    detail: str  # Human-readable message e.g. "User not found"
+    request_id: str  # Unique ID to trace this request in your logs
 
 
 # Maps HTTP status codes to short labels

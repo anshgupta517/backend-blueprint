@@ -4,7 +4,6 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
@@ -17,7 +16,9 @@ class Settings(BaseSettings):
     secret_key: str
 
     # CORS
-    cors_origins: str = "http://localhost:3000"  # Comma-separated list of allowed origins
+    cors_origins: str = (
+        "http://localhost:3000"  # Comma-separated list of allowed origins
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -32,7 +33,15 @@ class Settings(BaseSettings):
             normalized = v.strip().lower()
             if normalized in {"1", "true", "yes", "on", "debug", "development", "dev"}:
                 return True
-            if normalized in {"0", "false", "no", "off", "release", "production", "prod"}:
+            if normalized in {
+                "0",
+                "false",
+                "no",
+                "off",
+                "release",
+                "production",
+                "prod",
+            }:
                 return False
         return v
 
@@ -40,14 +49,13 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Returns origins as a list for FastAPI's CORSMiddleware."""
         return [origin.strip() for origin in self.cors_origins.split(",")]
-    
+
     # Database
     postgres_user: str
     postgres_password: str
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str
-
 
     # Test database
     postgres_test_db: str = "appdb_test"
@@ -63,12 +71,12 @@ class Settings(BaseSettings):
     # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
-    redis_db: int = 0              
+    redis_db: int = 0
 
     @property
     def redis_url(self) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
-    
+
     # Email (SMTP)
     smtp_host: str = "localhost"
     smtp_port: int = 587
@@ -84,7 +92,7 @@ class Settings(BaseSettings):
     enable_sentry: bool = False
 
     # Sentry
-    sentry_dsn: str = ""    # empty = disabled
+    sentry_dsn: str = ""  # empty = disabled
 
     # Google OAuth2
     google_client_id: str = ""
@@ -113,7 +121,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
-        case_sensitive=False,  
+        case_sensitive=False,
     )
 
 

@@ -22,11 +22,13 @@ class UserService:
             raise AlreadyExistsException("Email")
 
         real_hashed = await hash_password(data.password)
-        user = await self.repo.create({
-            "name": data.name,
-            "email": data.email,
-            "hashed_password": real_hashed,
-        })
+        user = await self.repo.create(
+            {
+                "name": data.name,
+                "email": data.email,
+                "hashed_password": real_hashed,
+            }
+        )
 
         # Invalidate list cache — a new user means cached lists are stale
         await cache.delete_pattern(UserCacheKeys.all_pattern())
@@ -53,14 +55,18 @@ class UserService:
             raise NotFoundException("User")
 
         # 3. Store in cache for next time (TTL: 5 minutes)
-        await cache.set(cache_key, {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "is_active": user.is_active,
-            "created_at": str(user.created_at),
-            "updated_at": str(user.updated_at),
-        }, ttl=300)
+        await cache.set(
+            cache_key,
+            {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "is_active": user.is_active,
+                "created_at": str(user.created_at),
+                "updated_at": str(user.updated_at),
+            },
+            ttl=300,
+        )
 
         return user
 
@@ -77,21 +83,27 @@ class UserService:
         result = PagedResponse.create(items=users, total=total, params=params)
 
         # Cache the serialised response dict
-        await cache.set(cache_key, {
-            "items": [
-                {
-                    "id": u.id, "name": u.name, "email": u.email,
-                    "is_active": u.is_active,
-                    "created_at": str(u.created_at),
-                    "updated_at": str(u.updated_at),
-                }
-                for u in users
-            ],
-            "total": total,
-            "page": params.page,
-            "page_size": params.page_size,
-            "pages": result.pages,
-        }, ttl=5)   # 5 sec TTL for user list
+        await cache.set(
+            cache_key,
+            {
+                "items": [
+                    {
+                        "id": u.id,
+                        "name": u.name,
+                        "email": u.email,
+                        "is_active": u.is_active,
+                        "created_at": str(u.created_at),
+                        "updated_at": str(u.updated_at),
+                    }
+                    for u in users
+                ],
+                "total": total,
+                "page": params.page,
+                "page_size": params.page_size,
+                "pages": result.pages,
+            },
+            ttl=5,
+        )  # 5 sec TTL for user list
 
         return result
 
@@ -105,9 +117,7 @@ class UserService:
             if existing:
                 raise AlreadyExistsException("Email")
 
-        updated = await self.repo.update(
-            user_id, data.model_dump(exclude_unset=True)
-        )
+        updated = await self.repo.update(user_id, data.model_dump(exclude_unset=True))
 
         # Invalidate this user's cache entries
         await cache.delete(UserCacheKeys.single(user_id))
@@ -130,6 +140,6 @@ class UserService:
         await cache.delete_pattern(UserCacheKeys.all_pattern())
 
         return {"message": "User deleted successfully"}
-    
+
     async def get_active_users(self) -> list[User]:
         return await self.repo.get_active_users()
