@@ -11,6 +11,7 @@ from app.core.logging import logger
 from app.events.bus import event_bus
 from app.events.definitions import UserRegistered, UserDeactivated
 
+
 class UserService:
     def __init__(self, db: AsyncSession):
         self.repo = UserRepository(db)
@@ -28,13 +29,15 @@ class UserService:
                 "hashed_password": real_hashed,
             }
         )
-        await event_bus.publish(UserRegistered(
-            user_id=user.id,
-            email=user.email,
-            name=user.name,
-            via_google=False,
-        ))
-        
+        await event_bus.publish(
+            UserRegistered(
+                user_id=user.id,
+                email=user.email,
+                name=user.name,
+                via_google=False,
+            )
+        )
+
         return user
 
     async def get_user(self, user_id: int) -> User:

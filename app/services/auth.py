@@ -1,6 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
-from app.core.security import verify_password, create_access_token, hash_password
+from app.core.security import (
+    decode_refresh_token,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+)
 from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
@@ -9,7 +15,6 @@ from app.schemas.auth import (
 )
 from fastapi import HTTPException, status
 from app.models.user import User
-from app.core.metrics import login_attempts_total
 from app.core.oauth import (
     get_google_client,
     GOOGLE_AUTH_URL,
@@ -52,8 +57,9 @@ class AuthService:
         )
 
         # Issue token with user's ID as the subject
-        token = create_access_token(subject=user.id)
-        return TokenResponse(access_token=token)
+        access_token = create_access_token(subject=user.id)
+        refresh_token = create_refresh_token(subject=user.id)
+        return access_token, refresh_token
 
     async def change_password(self, current_user: User, data: ChangePasswordRequest):
 
@@ -155,12 +161,14 @@ class AuthService:
                     avatar_url=avatar_url,
                 )
                 is_new_user = True
-                await event_bus.publish(UserRegistered(
-                    user_id=user.id,
-                    email=user.email,
-                    name=user.name,
-                    via_google=True,    # ← handlers can react differently
-                ))
+                await event_bus.publish(
+                    UserRegistered(
+                        user_id=user.id,
+                        email=user.email,
+                        name=user.name,
+                        via_google=True,  # ← handlers can react differently
+                    )
+                )
 
         if not user.is_active:
             raise HTTPException(
@@ -193,3 +201,15 @@ class AuthService:
         hashed = await hash_password(data.new_password)
         await self.repo.update(current_user.id, {"hashed_password": hashed})
         return {"message": "Password set successfully"}
+
+    async def refresh_access_token(self, refresh_token: str) -> str:
+        """Validates refresh token, returns new access token."""
+        user_id = decode_refresh_token(refresh_token)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+        user = await self.repo.get(int(user_id))
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+        return create_access_token(subject=user.id)

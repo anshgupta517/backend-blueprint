@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.schemas.auth import (
@@ -14,8 +15,11 @@ from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.core.rate_limit import login_rate_limit, change_password_rate_limit
 from fastapi.responses import RedirectResponse
+from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+bearer_scheme = HTTPBearer()
 
 
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
@@ -24,6 +28,7 @@ def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
+    response: Response,
     request: Request,
     data: LoginRequest,
     _: None = Depends(login_rate_limit),  # Enforce rate limit on login attempts
@@ -34,7 +39,17 @@ async def login(
     Include the token in subsequent requests as:
     Authorization: Bearer <token>
     """
-    return await service.login(data)
+    access_token, refresh_token = await service.login(data)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.is_production,  # HTTPS only in production
+        samesite="strict",
+        max_age=settings.refresh_token_expire_days * 86400,
+    )
+    return TokenResponse(access_token=access_token)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -91,3 +106,40 @@ async def set_password(
 ):
     """Only for Google users who want to add password login."""
     return await service.set_password(current_user, data)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    refresh_token: str | None = Cookie(default=None),  # reads from cookie
+    service: AuthService = Depends(get_auth_service),
+):
+    """
+    Client calls this when access token expires.
+    Browser automatically sends the refresh_token cookie.
+    Returns a new access token.
+    """
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+
+    access_token = await service.refresh_access_token(refresh_token)
+    return TokenResponse(access_token=access_token)
+
+
+@router.post("/logout")
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Invalidates the current token immediately.
+    Client should also delete the token on their end.
+    """
+    from app.core.security import add_token_to_blocklist
+    from app.core.config import settings
+
+    token = credentials.credentials
+    # Calculate remaining TTL so we don't store it longer than needed
+    expires_in = settings.access_token_expire_minutes * 60
+    await add_token_to_blocklist(token, expires_in)
+
+    return {"message": "Logged out successfully"}

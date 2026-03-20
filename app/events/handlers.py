@@ -14,10 +14,13 @@ async def on_user_registered_send_email(event: UserRegistered) -> None:
     """Send welcome email via Celery background task."""
     if event.via_google:
         # Could send a different "welcome, you signed in with Google" email
-        logger.info(f"Google signup — skipping standard welcome email for {event.email}")
+        logger.info(
+            f"Google signup — skipping standard welcome email for {event.email}"
+        )
         return
 
     from app.worker.tasks.email import send_welcome_email
+
     send_welcome_email.delay(
         user_email=event.email,
         user_name=event.name,
@@ -29,9 +32,10 @@ async def on_user_registered_track_metrics(event: UserRegistered) -> None:
     """Increment Prometheus registration counter."""
     try:
         from app.core.metrics import user_registrations_total
+
         user_registrations_total.inc()
     except Exception:
-        pass    # metrics are optional — never break registration over this
+        pass  # metrics are optional — never break registration over this
 
 
 async def on_user_registered_invalidate_cache(event: UserRegistered) -> None:
@@ -51,6 +55,7 @@ async def on_user_logged_in_track(event: UserLoggedIn) -> None:
     """Track login metrics."""
     try:
         from app.core.metrics import login_attempts_total
+
         login_attempts_total.labels(status="success").inc()
     except Exception:
         pass

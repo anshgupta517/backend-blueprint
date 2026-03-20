@@ -28,9 +28,7 @@ class EventBus:
         Called at startup — not per request.
         """
         self._handlers[event_type].append(handler)
-        logger.info(
-            f"Handler registered: {handler.__name__} → {event_type.__name__}"
-        )
+        logger.info(f"Handler registered: {handler.__name__} → {event_type.__name__}")
 
     async def publish(self, event: BaseEvent) -> None:
         """
@@ -45,9 +43,7 @@ class EventBus:
             logger.info(f"Event published with no handlers: {event_type.__name__}")
             return
 
-        logger.info(
-            f"Publishing {event_type.__name__} to {len(handlers)} handler(s)"
-        )
+        logger.info(f"Publishing {event_type.__name__} to {len(handlers)} handler(s)")
 
         # Run all handlers concurrently
         # Each handler gets its own try/except — one failure is isolated

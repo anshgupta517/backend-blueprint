@@ -86,7 +86,8 @@ class Settings(BaseSettings):
     email_from: str = "noreply@myapp.com"
 
     # JWT
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 30
 
     enable_prometheus: bool = False
     enable_sentry: bool = False

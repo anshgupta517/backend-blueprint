@@ -31,7 +31,7 @@ from app.events.registry import register_all_handlers
 async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.app_name} in {settings.app_env} mode")
-    register_all_handlers() # Register event handlers before app starts
+    register_all_handlers()  # Register event handlers before app starts
     if settings.app_env != "test":
         await cache.connect()
     yield

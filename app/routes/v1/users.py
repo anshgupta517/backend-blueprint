@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.pagination import PagedResponse, PaginationParams
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.services.user import UserService
@@ -66,3 +67,27 @@ async def get_active_users(
     service: UserService = Depends(get_user_service),
 ):
     return await service.get_active_users()
+
+
+@router.patch("/{user_id}/deactivate", response_model=UserResponse)
+async def deactivate_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Deactivates a user account immediately.
+    Their existing JWT tokens are rejected on next request.
+    TODO: Add admin role check here in future.
+    """
+    return await service.update_user(user_id, UserUpdate(is_active=False))
+
+
+@router.patch("/{user_id}/activate", response_model=UserResponse)
+async def activate_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Reactivates a deactivated account."""
+    return await service.update_user(user_id, UserUpdate(is_active=True))

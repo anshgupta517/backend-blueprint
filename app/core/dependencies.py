@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, is_token_blocked
 from app.repositories.user import UserRepository
 from app.models.user import User
 
@@ -15,40 +15,28 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """
-    Reusable dependency that:
-    1. Extracts the JWT from the Authorization header
-    2. Validates and decodes it
-    3. Loads the user from the database
-    4. Returns the user — or raises 401 if anything fails
-
-    Usage in any route:
-        async def my_route(current_user: User = Depends(get_current_user)):
-            ...
-    That single line makes the route fully protected.
+    """Dependency to get the currently authenticated user from the JWT token.
+    Raises 401 if token is missing, invalid, expired, or blocked.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired token",
-        headers={"WWW-Authenticate": "Bearer"},  # Standard OAuth2 header
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # Decode and validate the token
-    user_id = decode_access_token(credentials.credentials)
+    token = credentials.credentials
+
+    # Check blocklist first — fast Redis lookup
+    if await is_token_blocked(token):
+        raise credentials_exception
+
+    user_id = decode_access_token(token)
     if user_id is None:
         raise credentials_exception
 
-    # Load user from DB
     repo = UserRepository(db)
     user = await repo.get(int(user_id))
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
-
-    # Extra safety — deactivated users can't authenticate
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is deactivated",
-        )
 
     return user

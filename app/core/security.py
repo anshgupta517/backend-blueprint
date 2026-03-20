@@ -63,3 +63,45 @@ def decode_access_token(token: str) -> str | None:
         return payload.get("sub")  # Returns user ID as string
     except JWTError:
         return None
+
+
+def create_refresh_token(subject: int | str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=settings.refresh_token_expire_days
+    )
+    payload = {
+        "sub": str(subject),
+        "exp": expire,
+        "type": "refresh",
+    }
+
+    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+
+
+def decode_refresh_token(token: str) -> str | None:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=ALGORITHM)
+        if payload.get("type") != "refresh":
+            return None
+        return payload.get("sub")
+    except JWTError:
+        return None
+
+
+async def add_token_to_blocklist(token: str, expires_in: int) -> None:
+    """
+    Adds a JWT to the Redis blocklist on logout.
+    expires_in = seconds until token naturally expires
+    After that, the token would be invalid anyway — no need to keep it
+    """
+    from app.core.cache import cache
+
+    await cache.set(f"blocklist:{token}", "true", ttl=expires_in)
+
+
+async def is_token_blocked(token: str) -> bool:
+    """Check if a token has been explicitly invalidated."""
+    from app.core.cache import cache
+
+    result = await cache.get(f"blocklist:{token}")
+    return result is not None
