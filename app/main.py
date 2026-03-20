@@ -24,12 +24,14 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from app.events.registry import register_all_handlers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.app_name} in {settings.app_env} mode")
+    register_all_handlers() # Register event handlers before app starts
     if settings.app_env != "test":
         await cache.connect()
     yield

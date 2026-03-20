@@ -168,3 +168,17 @@ def disable_celery():
         return_value=MagicMock(id="test-task-id"),
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+def mock_event_bus():
+    """
+    Replace event_bus.publish with a no-op in tests.
+    Tests verify service behaviour, not event side effects.
+    Event handlers have their own dedicated tests.
+    """
+    with patch(
+        "app.events.bus.event_bus.publish",
+        new_callable=AsyncMock,
+    ) as mock_publish:
+        yield mock_publish

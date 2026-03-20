@@ -161,3 +161,17 @@ class TestDeleteUser:
             headers=auth_headers,
         )
         assert response.status_code == 404
+
+    async def test_create_user_publishes_event(
+        self, client: AsyncClient, mock_event_bus
+    ):
+        await client.post("/api/v1/users", json={
+            "name": "Alice",
+            "email": "alice@test.com",
+            "password": "password123",
+        })
+        # Verify the event was published
+        mock_event_bus.assert_called_once()
+        event = mock_event_bus.call_args[0][0]
+        assert event.email == "alice@test.com"
+        assert event.via_google is False

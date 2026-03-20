@@ -18,6 +18,8 @@ from app.core.oauth import (
 )
 from app.schemas.auth import OAuthCallbackResponse
 from app.core.config import settings
+from app.events.bus import event_bus
+from app.events.definitions import UserLoggedIn, PasswordChanged, UserRegistered
 
 
 class AuthService:
@@ -39,16 +41,15 @@ class AuthService:
 
         # Look up user by email
         user = await self.repo.get_by_email(data.email)
-        if not user:
-            login_attempts_total.labels(status="failure").inc()
+        if not user or not await verify_password(data.password, user.hashed_password):
             raise invalid_credentials_error
 
-        # Verify password against stored hash
-        if not await verify_password(data.password, user.hashed_password):
-            login_attempts_total.labels(status="failure").inc()
-            raise invalid_credentials_error
-
-        login_attempts_total.labels(status="success").inc()
+        await event_bus.publish(
+            UserLoggedIn(
+                user_id=user.id,
+                email=user.email,
+            )
+        )
 
         # Issue token with user's ID as the subject
         token = create_access_token(subject=user.id)
@@ -69,6 +70,13 @@ class AuthService:
         hashed_password = await hash_password(data.new_password)
 
         await self.repo.change_password(current_user.id, hashed_password)
+
+        await event_bus.publish(
+            PasswordChanged(
+                user_id=current_user.id,
+                email=current_user.email,
+            )
+        )
 
         return {"message": "Password changed successfully"}
 
@@ -147,6 +155,12 @@ class AuthService:
                     avatar_url=avatar_url,
                 )
                 is_new_user = True
+                await event_bus.publish(UserRegistered(
+                    user_id=user.id,
+                    email=user.email,
+                    name=user.name,
+                    via_google=True,    # ← handlers can react differently
+                ))
 
         if not user.is_active:
             raise HTTPException(

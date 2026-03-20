@@ -1,16 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
 from app.schemas.pagination import PagedResponse, PaginationParams
-from app.schemas.user import UserCreate, UserResponse, UserResponse, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate
 from app.models.user import User
 from app.exceptions.http import NotFoundException, AlreadyExistsException
 from app.core.security import hash_password
 from app.core.cache import cache
 from app.core.cache_keys import UserCacheKeys
 from app.core.logging import logger
-from app.worker.tasks.email import send_welcome_email
-from app.core.metrics import user_registrations_total
-
+from app.events.bus import event_bus
+from app.events.definitions import UserRegistered, UserDeactivated
 
 class UserService:
     def __init__(self, db: AsyncSession):
@@ -29,14 +28,13 @@ class UserService:
                 "hashed_password": real_hashed,
             }
         )
-
-        # Invalidate list cache — a new user means cached lists are stale
-        await cache.delete_pattern(UserCacheKeys.all_pattern())
-
-        send_welcome_email.delay(user_email=user.email, user_name=user.name)
-
-        logger.info(f"User created: id={user.id}")
-        user_registrations_total.inc()
+        await event_bus.publish(UserRegistered(
+            user_id=user.id,
+            email=user.email,
+            name=user.name,
+            via_google=False,
+        ))
+        
         return user
 
     async def get_user(self, user_id: int) -> User:
