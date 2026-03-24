@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.core.config import settings
+from collections.abc import AsyncGenerator
 
 engine = create_async_engine(
     settings.database_url,
@@ -17,7 +18,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency — provides a database session per request.
     The 'async with' guarantees the session is closed even if an error occurs.

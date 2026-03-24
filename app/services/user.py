@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user import UserRepository
 from app.schemas.pagination import PagedResponse, PaginationParams
-from app.schemas.user import UserCreate, UserUpdate
-from app.models.user import User
+from app.schemas.user import AdminUserUpdate, UserCreate, UserUpdate
+from app.models.user import User, UserRole
 from app.exceptions.http import NotFoundException, AlreadyExistsException
 from app.core.security import hash_password
 from app.core.cache import cache
@@ -27,6 +27,8 @@ class UserService:
                 "name": data.name,
                 "email": data.email,
                 "hashed_password": real_hashed,
+                "is_active": True,
+                "role": UserRole.USER,
             }
         )
         await event_bus.publish(
@@ -108,7 +110,7 @@ class UserService:
 
         return result
 
-    async def update_user(self, user_id: int, data: UserUpdate) -> User:
+    async def update_user(self, user_id: int, data: UserUpdate | AdminUserUpdate) -> User:
         user = await self.repo.get(user_id)
         if not user:
             raise NotFoundException("User")

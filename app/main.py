@@ -13,7 +13,6 @@ from app.core.exceptions import (
 )
 from app.core.logging import logger
 from app.routes.v1 import users, auth
-
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limit import limiter

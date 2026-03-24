@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.core.security import decode_access_token, is_token_blocked
 from app.repositories.user import UserRepository
-from app.models.user import User
+from app.models.user import User, UserRole
+from functools import partial
 
 # HTTPBearer extracts the token from the Authorization header automatically
 # Expected header format: Authorization: Bearer <token>
@@ -40,3 +41,29 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+
+def require_role(*roles: UserRole):
+    """
+    Returns a dependency that enforces role requirements.
+
+    Usage:
+        # Single role
+        Depends(require_role(UserRole.ADMIN))
+
+        # Multiple roles (if added in future, e.g., MODERATOR)
+        Depends(require_role(UserRole.ADMIN, UserRole.MODERATOR))
+    """
+    async def role_checker(
+        current_user: User = Depends(get_current_user)
+    ) -> User:
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Required role: {[r.value for r in roles]}",
+            )
+        return current_user
+    return role_checker
+
+
+# Pre-built convenience dependencies
+require_admin = require_role(UserRole.ADMIN)
