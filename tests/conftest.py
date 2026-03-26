@@ -7,11 +7,13 @@ from app.main import app
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
+from app.core.security import hash_password
 from app.core.rate_limit import (
     login_rate_limit,
     change_password_rate_limit,
     no_rate_limit,
 )
+from app.models.user import User, UserRole
 from unittest.mock import AsyncMock, patch, patch, MagicMock
 
 # --- Engine scoped to the whole session ---
@@ -130,6 +132,64 @@ async def auth_headers(client: AsyncClient, test_user: dict) -> dict:
         json={
             "email": "test@example.com",
             "password": "testpassword123",
+        },
+    )
+    assert response.status_code == 200, response.json()
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def another_user(client: AsyncClient) -> dict:
+    response = await client.post(
+        "/api/v1/users",
+        json={
+            "name": "Another User",
+            "email": "another@example.com",
+            "password": "anotherpassword123",
+        },
+    )
+    assert response.status_code == 201, response.json()
+    return response.json()
+
+
+@pytest_asyncio.fixture
+async def another_user_auth_headers(client: AsyncClient, another_user: dict) -> dict:
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "another@example.com",
+            "password": "anotherpassword123",
+        },
+    )
+    assert response.status_code == 200, response.json()
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession) -> User:
+    user = User(
+        name="Admin User",
+        email="admin@example.com",
+        hashed_password=await hash_password("adminpassword123"),
+        is_active=True,
+        role=UserRole.ADMIN,
+        is_superuser=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def admin_auth_headers(client: AsyncClient, admin_user: User) -> dict:
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "admin@example.com",
+            "password": "adminpassword123",
         },
     )
     assert response.status_code == 200, response.json()
