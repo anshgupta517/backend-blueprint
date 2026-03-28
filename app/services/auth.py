@@ -46,7 +46,11 @@ class AuthService:
 
         # Look up user by email
         user = await self.repo.get_by_email(data.email)
-        if not user or not await verify_password(data.password, user.hashed_password):
+        if (
+            not user
+            or not user.is_active
+            or not await verify_password(data.password, user.hashed_password)
+        ):
             raise invalid_credentials_error
 
         await event_bus.publish(

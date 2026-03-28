@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient
+from app.models.user import User
 
 
 class TestLogin:
@@ -69,6 +70,27 @@ class TestLogin:
         )
         assert wrong_email.json()["detail"] == wrong_password.json()["detail"]
 
+    async def test_login_rejects_deactivated_user(
+        self,
+        client: AsyncClient,
+        db_session,
+        test_user: dict,
+    ):
+        user = await db_session.get(User, test_user["id"])
+        user.is_active = False
+        await db_session.commit()
+
+        response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "test@example.com",
+                "password": "testpassword123",
+            },
+        )
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid email or password"
+
 
 class TestMe:
 
@@ -89,6 +111,40 @@ class TestMe:
             headers={"Authorization": "Bearer completelyfaketoken"},
         )
         assert response.status_code == 401
+
+    async def test_get_me_rejects_logged_out_token(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ):
+        blocked_tokens = set()
+        token = auth_headers["Authorization"].split(" ", 1)[1]
+
+        async def fake_add_token_to_blocklist(raw_token: str, expires_in: int):
+            blocked_tokens.add(raw_token)
+
+        async def fake_is_token_blocked(raw_token: str) -> bool:
+            return raw_token in blocked_tokens
+
+        with (
+            patch(
+                "app.core.security.add_token_to_blocklist",
+                new=AsyncMock(side_effect=fake_add_token_to_blocklist),
+            ),
+            patch(
+                "app.core.dependencies.is_token_blocked",
+                new=AsyncMock(side_effect=fake_is_token_blocked),
+            ),
+        ):
+            logout_response = await client.post(
+                "/api/v1/auth/logout",
+                headers=auth_headers,
+            )
+            assert logout_response.status_code == 200
+            assert token in blocked_tokens
+
+            response = await client.get("/api/v1/auth/me", headers=auth_headers)
+            assert response.status_code == 401
 
 
 class TestChangePassword:
@@ -196,3 +252,20 @@ class TestGoogleOAuth:
             response = await client.get("/api/v1/auth/google/callback?code=fake_code")
             assert response.status_code == 200
             assert response.json()["is_new_user"] is False
+
+
+class TestRefreshToken:
+
+    async def test_refresh_requires_cookie(self, client: AsyncClient):
+        response = await client.post("/api/v1/auth/refresh")
+        assert response.status_code == 401
+        assert response.json()["detail"] == "No refresh token"
+
+    async def test_refresh_rejects_invalid_cookie(self, client: AsyncClient):
+        client.cookies.set("refresh_token", "not-a-real-token")
+        try:
+            response = await client.post("/api/v1/auth/refresh")
+            assert response.status_code == 401
+            assert response.json()["detail"] == "Invalid refresh token"
+        finally:
+            client.cookies.clear()
