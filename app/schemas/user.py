@@ -30,15 +30,19 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     """What a regular user can update about themselves."""
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
     email: EmailStr | None = None
 
+
 class AdminUserUpdate(BaseModel):
     """What an admin can update — superset of UserUpdate."""
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
     email: EmailStr | None = None
     is_active: bool | None = None
     role: UserRole | None = None
+
 
 class UserResponse(BaseModel):
     """What we send back — never expose hashed_password."""
@@ -64,6 +68,7 @@ class UserResponse(BaseModel):
         )
 
     model_config = {"from_attributes": True}  # Pydantic v2 replaces orm_mode = True
+
 
 class RoleUpdate(BaseModel):
     role: UserRole

@@ -102,6 +102,7 @@ async def activate_user(
     """Reactivates a deactivated account."""
     return await service.update_user(user_id, AdminUserUpdate(is_active=True))
 
+
 @router.patch("/{user_id}/role", response_model=UserResponse)
 async def change_user_role(
     user_id: int,

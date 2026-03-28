@@ -1,9 +1,9 @@
-# app/events/handlers.py
 from app.events.definitions import (
     UserRegistered,
     UserDeactivated,
     UserLoggedIn,
     PasswordChanged,
+    PostCreated,
 )
 from app.core.logging import logger
 from app.core.cache import cache
@@ -66,3 +66,10 @@ async def on_password_changed_notify(event: PasswordChanged) -> None:
     Send a security notification email.
     """
     logger.info(f"Password changed for user_id={event.user_id}")
+
+
+async def on_post_created_notify(event: PostCreated) -> None:
+    """
+    Send a notification email when a new post is created.
+    """
+    logger.info(f"Post created: {event.title} by user_id={event.author_id}")

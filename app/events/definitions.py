@@ -48,3 +48,13 @@ class PasswordChanged(BaseEvent):
 
     user_id: int = 0
     email: str = ""
+
+
+@dataclass
+class PostCreated(BaseEvent):
+    """Published when a new post is created."""
+
+    post_id: int = 0
+    title: str = ""
+    author_id: int = 0
+    visibility: str = ""

@@ -12,7 +12,7 @@ from app.core.exceptions import (
     unhandled_exception_handler,
 )
 from app.core.logging import logger
-from app.routes.v1 import users, auth
+from app.routes.v1 import users, auth, posts
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limit import limiter
@@ -106,6 +106,7 @@ def create_app() -> FastAPI:
     # ── Routers ──────────────────────────────────────────────────
     app.include_router(users.router, prefix="/api/v1")
     app.include_router(auth.router, prefix="/api/v1")
+    app.include_router(posts.router, prefix="/api/vi")
 
     @app.get("/health")
     async def health_check():

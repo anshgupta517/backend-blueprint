@@ -29,3 +29,17 @@ class UserCacheKeys:
     def all_pattern() -> str:
         """Pattern to wipe ALL user cache entries at once."""
         return "user:*"
+
+
+class PostCacheKeys:
+    PREFIX = "post"
+
+    @staticmethod
+    def single(post_id: int) -> str:
+        """Cache key for a single post by ID."""
+        return f"post:{post_id}"
+
+    @staticmethod
+    def all_pattern() -> str:
+        """Pattern to wipe ALL post cache entries at once."""
+        return "post:*"

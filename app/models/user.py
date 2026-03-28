@@ -4,9 +4,11 @@ from sqlalchemy import String, Boolean, Enum as SAEnum
 from app.db.base import BaseModel
 import enum
 
+
 class UserRole(str, enum.Enum):
     USER = "user"
     ADMIN = "admin"
+
 
 class User(BaseModel):
     """
@@ -33,4 +35,3 @@ class User(BaseModel):
     avatar_url: Mapped[Optional[str]] = mapped_column(
         String(500), nullable=True  # Google profile picture URL
     )
-

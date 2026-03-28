@@ -110,7 +110,9 @@ class UserService:
 
         return result
 
-    async def update_user(self, user_id: int, data: UserUpdate | AdminUserUpdate) -> User:
+    async def update_user(
+        self, user_id: int, data: UserUpdate | AdminUserUpdate
+    ) -> User:
         user = await self.repo.get(user_id)
         if not user:
             raise NotFoundException("User")

@@ -42,6 +42,7 @@ async def get_current_user(
 
     return user
 
+
 def require_role(*roles: UserRole):
     """
     Returns a dependency that enforces role requirements.
@@ -53,15 +54,15 @@ def require_role(*roles: UserRole):
         # Multiple roles (if added in future, e.g., MODERATOR)
         Depends(require_role(UserRole.ADMIN, UserRole.MODERATOR))
     """
-    async def role_checker(
-        current_user: User = Depends(get_current_user)
-    ) -> User:
+
+    async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Required role: {[r.value for r in roles]}",
             )
         return current_user
+
     return role_checker
 
 
