@@ -3,6 +3,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool  # No connection pooling for tests
+import itertools
 from app.main import app
 from app.core.config import settings
 from app.db.base import Base
@@ -32,6 +33,8 @@ TestSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
+
+_rate_limit_ip_counter = itertools.count(2)
 
 
 # --- Database setup/teardown ---
@@ -102,6 +105,52 @@ async def client(db_session: AsyncSession):
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def rate_limited_client(db_session: AsyncSession):
+    """
+    HTTP test client that keeps the real login rate limiter enabled.
+    Used for explicit rate-limit tests.
+    """
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[change_password_rate_limit] = no_rate_limit
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def isolated_rate_limited_client(db_session: AsyncSession):
+    """
+    Rate-limited client with a unique remote address so limiter state
+    does not leak across tests.
+    """
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[change_password_rate_limit] = no_rate_limit
+
+    client_ip = f"127.0.0.{next(_rate_limit_ip_counter)}"
+    transport = ASGITransport(app=app, client=(client_ip, 12345))
+    async with AsyncClient(
+        transport=transport,
         base_url="http://test",
     ) as ac:
         yield ac

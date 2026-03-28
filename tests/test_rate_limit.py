@@ -1,4 +1,5 @@
 from fastapi import Request
+from httpx import AsyncClient
 
 from app.core.rate_limit import RateLimit, limiter
 
@@ -34,3 +35,48 @@ class TestRateLimitDependency:
         assert captured["request"] is request
         assert captured["endpoint_func"] is dependency._endpoint
         assert captured["in_middleware"] is False
+
+
+class TestLoginRateLimit:
+    async def test_successful_login_is_allowed_before_threshold(
+        self,
+        isolated_rate_limited_client: AsyncClient,
+    ):
+        create_response = await isolated_rate_limited_client.post(
+            "/api/v1/users",
+            json={
+                "name": "Rate Limited User",
+                "email": "ratelimit@example.com",
+                "password": "testpassword123",
+            },
+        )
+        assert create_response.status_code == 201
+
+        response = await isolated_rate_limited_client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "ratelimit@example.com",
+                "password": "testpassword123",
+            },
+        )
+
+        assert response.status_code == 200
+        assert "access_token" in response.json()
+
+    async def test_failed_login_attempts_are_rate_limited(
+        self,
+        isolated_rate_limited_client: AsyncClient,
+    ):
+        statuses = []
+        for _ in range(6):
+            response = await isolated_rate_limited_client.post(
+                "/api/v1/auth/login",
+                json={
+                    "email": "nobody@test.com",
+                    "password": "wrongpassword",
+                },
+            )
+            statuses.append(response.status_code)
+
+        assert statuses[:5] == [401, 401, 401, 401, 401]
+        assert statuses[5] == 429
