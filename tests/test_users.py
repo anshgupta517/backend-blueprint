@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from app.models.user import User
 
 
 class TestCreateUser:
@@ -119,6 +120,24 @@ class TestGetUser:
         assert response.status_code == 403
         assert "only access your own account" in response.json()["detail"].lower()
 
+    async def test_get_user_rejects_token_for_deactivated_user(
+        self,
+        client: AsyncClient,
+        test_user: dict,
+        auth_headers: dict,
+        db_session,
+    ):
+        user = await db_session.get(User, test_user["id"])
+        user.is_active = False
+        await db_session.commit()
+
+        response = await client.get(
+            f"/api/v1/users/{test_user['id']}",
+            headers=auth_headers,
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid or expired token"
+
     async def test_list_users_requires_admin(
         self, client: AsyncClient, auth_headers: dict, test_user: dict
     ):
@@ -193,6 +212,69 @@ class TestUpdateUser:
             headers=admin_auth_headers,
         )
         assert response.status_code == 404
+
+
+class TestAdminAccountControls:
+    async def test_deactivate_user_requires_admin(
+        self,
+        client: AsyncClient,
+        test_user: dict,
+        auth_headers: dict,
+    ):
+        response = await client.patch(
+            f"/api/v1/users/{test_user['id']}/deactivate",
+            headers=auth_headers,
+        )
+        assert response.status_code == 403
+        assert "required role" in response.json()["detail"].lower()
+
+    async def test_admin_can_deactivate_and_activate_user(
+        self,
+        client: AsyncClient,
+        test_user: dict,
+        admin_auth_headers: dict,
+    ):
+        deactivate_response = await client.patch(
+            f"/api/v1/users/{test_user['id']}/deactivate",
+            headers=admin_auth_headers,
+        )
+        assert deactivate_response.status_code == 200
+        assert deactivate_response.json()["is_active"] is False
+
+        activate_response = await client.patch(
+            f"/api/v1/users/{test_user['id']}/activate",
+            headers=admin_auth_headers,
+        )
+        assert activate_response.status_code == 200
+        assert activate_response.json()["is_active"] is True
+
+    async def test_change_role_requires_admin(
+        self,
+        client: AsyncClient,
+        test_user: dict,
+        auth_headers: dict,
+    ):
+        response = await client.patch(
+            f"/api/v1/users/{test_user['id']}/role",
+            json={"role": "admin"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 403
+        assert "required role" in response.json()["detail"].lower()
+
+    async def test_admin_can_change_user_role(
+        self,
+        client: AsyncClient,
+        test_user: dict,
+        admin_auth_headers: dict,
+    ):
+        response = await client.patch(
+            f"/api/v1/users/{test_user['id']}/role",
+            json={"role": "admin"},
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["role"] == "admin"
 
 
 class TestDeleteUser:

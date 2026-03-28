@@ -14,6 +14,11 @@ class CacheClient:
     def __init__(self):
         self._client: redis.Redis | None = None
 
+    def _require_client(self) -> redis.Redis:
+        if self._client is None:
+            raise RuntimeError("Redis client is not connected")
+        return self._client
+
     async def connect(self):
         """Create the Redis connection pool."""
         self._client = redis.from_url(
@@ -35,7 +40,8 @@ class CacheClient:
         Returns None on cache miss OR if Redis is unavailable.
         """
         try:
-            value = await self._client.get(key)
+            client = self._require_client()
+            value = await client.get(key)
             if value is None:
                 return None
             return json.loads(value)
@@ -51,8 +57,9 @@ class CacheClient:
         Returns True on success, False on failure.
         """
         try:
+            client = self._require_client()
             serialised = json.dumps(value, default=str)
-            await self._client.setex(key, ttl, serialised)
+            await client.setex(key, ttl, serialised)
             return True
         except Exception as e:
             logger.warning(f"Cache set failed for key={key}: {e}")
@@ -61,7 +68,8 @@ class CacheClient:
     async def delete(self, key: str) -> bool:
         """Delete a specific key — used for cache invalidation."""
         try:
-            await self._client.delete(key)
+            client = self._require_client()
+            await client.delete(key)
             return True
         except Exception as e:
             logger.warning(f"Cache delete failed for key={key}: {e}")
@@ -74,9 +82,10 @@ class CacheClient:
         Returns number of keys deleted.
         """
         try:
-            keys = await self._client.keys(pattern)
+            client = self._require_client()
+            keys = await client.keys(pattern)
             if keys:
-                await self._client.delete(*keys)
+                await client.delete(*keys)
             return len(keys)
         except Exception as e:
             logger.warning(f"Cache pattern delete failed for pattern={pattern}: {e}")
