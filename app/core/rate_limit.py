@@ -1,6 +1,6 @@
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from fastapi import Request, HTTPException, status
+from fastapi import Request
 from app.core.config import settings
 
 limiter = Limiter(
@@ -26,18 +26,25 @@ class RateLimit:
     def __init__(self, limit: str):
         self.limit = limit
         self._enabled = True
+        self._endpoint = self._build_limited_endpoint()
+
+    def _build_limited_endpoint(self):
+        def dependency_limited_endpoint(request: Request):
+            return None
+
+        dependency_limited_endpoint.__name__ = (
+            f"_dependency_limit_{self.limit.replace('/', '_').replace(' ', '_')}_{id(self)}"
+        )
+        dependency_limited_endpoint.__qualname__ = dependency_limited_endpoint.__name__
+        return limiter.limit(self.limit)(dependency_limited_endpoint)
 
     async def __call__(self, request: Request):
         if not self._enabled:
             return None
 
-        # Use slowapi's limiter to check the limit
-        # This leverages slowapi's existing logic without the decorator
-        await limiter._check_request_limit(
-            request=request,
-            endpoint=request.scope.get("endpoint", lambda: None),
-            limit=self.limit,
-        )
+        # Register a private synthetic endpoint once, then reuse slowapi's
+        # route-limit machinery from this dependency.
+        limiter._check_request_limit(request, self._endpoint, False)
         return None
 
 
