@@ -78,6 +78,7 @@ class Settings(BaseSettings):
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     # Email (SMTP)
+    enable_email: bool = False
     smtp_host: str = "localhost"
     smtp_port: int = 587
     smtp_tls: bool = True

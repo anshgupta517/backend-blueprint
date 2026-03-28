@@ -1,5 +1,7 @@
 import itertools
 import random
+import time
+import uuid
 
 from locust import HttpUser, between, task
 
@@ -21,8 +23,9 @@ class AuthenticatedUser(HttpUser):
 
     def on_start(self):
         user_number = next(_user_counter)
+        run_suffix = f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
         self.name = f"Locust User {user_number}"
-        self.email = f"locust{user_number}@example.com"
+        self.email = f"locust-{user_number}-{run_suffix}@example.com"
         self.password = "locustpass123"
 
         with self.client.post(
@@ -74,13 +77,13 @@ class AuthenticatedUser(HttpUser):
 
     @task(4)
     def get_me(self):
-        if not self.ensure_authenticated():
+        if not self.token:
             return
         self.client.get("/api/v1/auth/me", headers=self.auth_headers())
 
     @task(3)
     def get_own_user(self):
-        if not self.ensure_authenticated():
+        if not self.token:
             return
         if self.user_id is not None:
             self.client.get(
@@ -91,7 +94,7 @@ class AuthenticatedUser(HttpUser):
 
     @task(2)
     def update_own_user(self):
-        if not self.ensure_authenticated():
+        if not self.token:
             return
         if self.user_id is not None:
             self.client.patch(
@@ -103,7 +106,7 @@ class AuthenticatedUser(HttpUser):
 
     @task(1)
     def refresh_token(self):
-        if not self.ensure_authenticated():
+        if not self.token:
             return
         self.client.post("/api/v1/auth/refresh", name="/api/v1/auth/refresh")
 

@@ -8,6 +8,7 @@ from app.events.definitions import (
 from app.core.logging import logger
 from app.core.cache import cache
 from app.core.cache_keys import UserCacheKeys
+from app.core.config import settings
 
 
 async def on_user_registered_send_email(event: UserRegistered) -> None:
@@ -16,6 +17,12 @@ async def on_user_registered_send_email(event: UserRegistered) -> None:
         # Could send a different "welcome, you signed in with Google" email
         logger.info(
             f"Google signup — skipping standard welcome email for {event.email}"
+        )
+        return
+
+    if not settings.enable_email:
+        logger.info(
+            f"Email disabled — skipping welcome email for {event.email}"
         )
         return
 

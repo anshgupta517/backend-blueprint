@@ -16,6 +16,20 @@ class UserService:
     def __init__(self, db: AsyncSession):
         self.repo = UserRepository(db)
 
+    @staticmethod
+    def _serialise_user(user: User) -> dict:
+        return {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "is_active": user.is_active,
+            "avatar_url": user.avatar_url,
+            "created_at": str(user.created_at),
+            "updated_at": str(user.updated_at),
+            "has_password": user.hashed_password is not None,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        }
+
     async def create_user(self, data: UserCreate) -> User:
         existing = await self.repo.get_by_email(data.email)
         if existing:
@@ -48,7 +62,6 @@ class UserService:
         cached = await cache.get(cache_key)
         if cached:
             logger.info(f"Cache hit: {cache_key}")
-            # Return a User-like dict — routes use response_model to serialise
             return cached
 
         # 2. Cache miss — hit the database
@@ -58,18 +71,7 @@ class UserService:
             raise NotFoundException("User")
 
         # 3. Store in cache for next time (TTL: 5 minutes)
-        await cache.set(
-            cache_key,
-            {
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "is_active": user.is_active,
-                "created_at": str(user.created_at),
-                "updated_at": str(user.updated_at),
-            },
-            ttl=300,
-        )
+        await cache.set(cache_key, self._serialise_user(user), ttl=300)
 
         return user
 
@@ -90,14 +92,7 @@ class UserService:
             cache_key,
             {
                 "items": [
-                    {
-                        "id": u.id,
-                        "name": u.name,
-                        "email": u.email,
-                        "is_active": u.is_active,
-                        "created_at": str(u.created_at),
-                        "updated_at": str(u.updated_at),
-                    }
+                    self._serialise_user(u)
                     for u in users
                 ],
                 "total": total,
